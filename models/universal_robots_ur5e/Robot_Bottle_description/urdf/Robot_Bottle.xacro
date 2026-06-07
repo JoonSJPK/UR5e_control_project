@@ -1,0 +1,28 @@
+<?xml version="1.0" ?>
+<robot name="Robot_Bottle" xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+<xacro:include filename="$(find Robot_Bottle_description)/urdf/materials.xacro" />
+<xacro:include filename="$(find Robot_Bottle_description)/urdf/Robot_Bottle.trans" />
+<xacro:include filename="$(find Robot_Bottle_description)/urdf/Robot_Bottle.gazebo" />
+<link name="base_link">
+  <inertial>
+    <origin xyz="0.2693250002028657 5.4499211882274114e-11 0.9273532075196708" rpy="0 0 0"/>
+    <mass value="5155.2633244659855"/>
+    <inertia ixx="2060.291131" iyy="2060.078424" izz="268.742176" ixy="0.0" iyz="-0.0" ixz="-1e-06"/>
+  </inertial>
+  <visual>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="package://Robot_Bottle_description/meshes/base_link.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+    <material name="silver"/>
+  </visual>
+  <collision>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="package://Robot_Bottle_description/meshes/base_link.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+  </collision>
+</link>
+
+</robot>

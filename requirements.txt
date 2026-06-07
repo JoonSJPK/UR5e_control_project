@@ -1,0 +1,9 @@
+# MuJoCo
+mujoco==3.9.0
+
+# Robot Model
+robot-descriptions==1.11.0
+
+# Numerical and Plotting
+numpy==1.26.4
+matplotlib==3.8.4
