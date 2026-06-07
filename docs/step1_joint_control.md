@@ -8,5 +8,6 @@ Plan to track data and optimize gains
 
 PD is enough because gravity compensation is included in the UR5e XML
 
+d/dt(error) = d/dt(target - current) = -d/dt(current) = -velocity
 
 

@@ -13,4 +13,4 @@ class PIDController:
     self.integral += error * dt
     torques = (self.Kp * error) + (self.Ki * self.integral) - (self.Kd * curr_qvel)
 
-    return error, torques
+    return torques
