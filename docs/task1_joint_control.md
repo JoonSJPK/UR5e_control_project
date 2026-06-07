@@ -4,11 +4,15 @@
 - Design one simple target object in Fusion360, then export it to MJCF or URDF using a tool such as fusion2urdf, and place it in the MuJoCo scene.
 - Write your own PD/PID controller to move the robot arm to a target joint configuration. Do this by directly applying joint torques, rather than using MuJoCo's built-in position actuator. Tune the gains and plot the tracking error.
 
+---
+
 ## Basic Setup
 
 Test object, a bottle, was made in Fusion360 and exported to a MuJoCo scene through the fusion2urdf tool. The UR5e model from MuJoCo Menagerie was placed into the scene alongside the test object.
 
 ![Test bottle in MuJoCo scene](images/test_bottle.png)
+
+---
 
 ## What is a PID controller?
 
@@ -38,6 +42,8 @@ Where:
 
 The error will be calculated by taking the difference of the target and current position. The gains of $K_p$, $K_i$, and $K_d$ are the parameters I will be adjusting to tune the UR5e robot.
 
+---
+
 ## Testing Kp, Ki, Kd limits
 
 I created a separate controllers class to initialize and better control each joint of the 6 DOF robot in an isolated manner. Setting my target to -90 degrees or -1.5708 rad allowed me to visualize relative accuracy of the joint. Joint 6 was my first joint I tested. Starting from a **Kp** value of 10, I progressively increased the gain.
@@ -48,9 +54,11 @@ Using the matplotlib library, I collected position data of the joint for a given
 
 ```python
 steps = 10/dt
+
 if(count < (steps)):
     collect_rad.append(float(data.qpos[5]))
     count += 1
+
 if(count == steps):
     plot_graph(dt, collect_rad, target, controllers[5].Kp, controllers[5].Ki, controllers[5].Kd)
     count += 1
@@ -61,9 +69,12 @@ if(count == steps):
 I also did a sweep of Kp values 0–100 in increments of 10 and 0–300 in increments of 50 while keeping Ki and Kd constant at 0.
 
 ![Kp sweep 0–100](images/joint6_Kp_100_sweep.png)
+
 ![Kp sweep 0–300](images/joint6_Kp_300_sweep.png)
 
 This confirmed my observations from earlier.
+
+---
 
 ## Plan to track data and optimize gains
 
