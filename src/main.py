@@ -40,22 +40,30 @@ def main():
   for i in range(6):
      controllers.append(PIDController(Kp=200, Ki= 100, Kd=100))
 
-  target = np.array([-1.5708, -1.5708, 1.5708, -1.5708, -1.5708, 0.0]) 
-  #target = -1.5708
+  #target = np.array([-1.5708, -1.5708, 1.5708, -1.5708, -1.5708, 0.0]) 
+  target = -1.5708
   collect_rad = []
   count = 0
 
   with mujoco.viewer.launch_passive(model, data) as viewer:
     while viewer.is_running():
         
-        for i in range(len(target)):
-           torques = controllers[i].compute(dt, target[i], data.qpos[i], data.qvel[i])
-           data.qfrc_applied[i] = torques
-        #torques = controllers[5].compute(dt, target, data.qpos[5], data.qvel[5])
-        #data.qfrc_applied[5] = torques
+        #for i in range(len(target)):
+           #torques = controllers[i].compute(dt, target[i], data.qpos[i], data.qvel[i])
+           #data.qfrc_applied[i] = torques
+        torques = controllers[5].compute(dt, target, data.qpos[5], data.qvel[5])
+        data.qfrc_applied[5] = torques
 
         mujoco.mj_step(model, data)
         viewer.sync()
+
+        steps = 10/dt
+        if(count < (steps)):
+          collect_rad.append(float(data.qpos[5]))
+          count += 1
+        if(count == steps):
+          plot_graph(dt, collect_rad, target)
+          count += 1
 
         
            
