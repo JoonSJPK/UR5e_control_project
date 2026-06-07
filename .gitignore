@@ -24,6 +24,10 @@ build/
 *.csv
 *.npy
 
+# Allow images in docs
+!docs/**/*.png
+!docs/**/*.jpg
+
 # MuJoCo
 *.mjb
 
