@@ -115,11 +115,11 @@ Kp = 0.6Ku = 84
 Ki = (1.2Ku) / Tu = 168
 Kd = 0.075KuTu = 10.5
 
-The result was another steady state oscillations. I noticed two problems about the movement of the arm. It had a sluggish start at the beginning and the steady oscillations.
+I noticed two problems about the movement of the arm with these settings. It had a sluggish start at the beginning and the underdamped oscillations.
 
 ![Ziegler Oscillations](images/Ziegler_oscillations.png)
 
-I was able turn the steady oscillation into a damped oscillation by increasing the derivative term to 50.
+I was able turn the undamped oscillation into a underdamped oscillation by increasing the derivative term to 50.
 
 ![Damped Oscillation](images/damped_oscillation.png)
 
@@ -133,6 +133,18 @@ The next step was just seeing how far I could increase the Integral term without
 
 The final gains for joint 2 were the following: Kp = 220, Ki = 190, Kd = 50.
 
+<table>
+  <tr>
+    <td><img src="images/joint2.png" alt="Joint 3" width="320"/></td>
+    <td><img src="images/joint4_overshoot.png" alt="Joint 4 Overshoot" width="320"/></td>
+  </tr>
+  <tr>
+    <td><img src="images/joint4_fix.png" alt="Joint 4 Fix" width="320"/></td>
+    <td><img src="images/joint6.png" alt="Joint 6" width="320"/></td>
+  </tr>
+</table>
+
+![Category1_joints](images/category1_joints.png)
 
 
 ---
