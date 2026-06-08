@@ -135,7 +135,7 @@ The final gains for joint 2 were the following: Kp = 220, Ki = 190, Kd = 50.
 
 <table>
   <tr>
-    <td><img src="images/joint2.png" alt="Joint 3" width="320"/></td>
+    <td><img src="images/joint3.png" alt="Joint 3" width="320"/></td>
     <td><img src="images/joint4_overshoot.png" alt="Joint 4 Overshoot" width="320"/></td>
   </tr>
   <tr>
