@@ -1,15 +1,17 @@
+import csv
 import os
+import shutil
 import subprocess
 import sys
 import threading
 import tkinter as tk
-from tkinter import ttk
+from tkinter import ttk, filedialog
 from datetime import datetime
 
 import matplotlib
 matplotlib.use("TkAgg")
-import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
+import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
 MAIN_PY = os.path.join(os.path.dirname(__file__), "main.py")
@@ -24,67 +26,72 @@ class PIDTunerApp:
         self.root.resizable(False, False)
 
         self._last_plot_path = None
-        self._build_controls()
-        self._build_plot()
+        self._sim_proc = None
+        self._build_ui()
 
-    def _build_controls(self):
-        ctrl = ttk.Frame(self.root, padding=12)
-        ctrl.grid(row=0, column=0, sticky="ns")
+    def _build_ui(self):
+        left = ttk.Frame(self.root, padding=12)
+        left.grid(row=0, column=0, sticky="ns")
 
-        # Joint selector
-        ttk.Label(ctrl, text="Joint").grid(row=0, column=0, columnspan=2, sticky="w")
-        self.joint_var = tk.IntVar(value=6)
+        # Header row
+        for col, text in enumerate(["Joint", "Kp", "Ki", "Kd", "Active"]):
+            ttk.Label(left, text=text, width=10, anchor="center",
+                      font=("", 10, "bold")).grid(row=0, column=col, padx=4, pady=4)
+
+        ttk.Separator(left, orient="horizontal").grid(
+            row=1, column=0, columnspan=5, sticky="ew", pady=2
+        )
+
+        self.joint_rows = {}
         for j in range(1, 7):
-            ttk.Radiobutton(ctrl, text=str(j), variable=self.joint_var, value=j).grid(
-                row=1, column=j - 1, padx=2
+            row = j + 1
+            ttk.Label(left, text=str(j), anchor="e", width=6).grid(
+                row=row, column=0, padx=4, pady=4
             )
 
-        ttk.Separator(ctrl, orient="horizontal").grid(
-            row=2, column=0, columnspan=6, sticky="ew", pady=8
-        )
+            kp_var = tk.DoubleVar(value=0.0)
+            ki_var = tk.DoubleVar(value=0.0)
+            kd_var = tk.DoubleVar(value=0.0)
+            active_var = tk.BooleanVar(value=False)
 
-        # PID gain rows
-        self.gains = {}
-        for row_idx, (name, default, lo, hi) in enumerate(
-            [("Kp", 100.0, 0.0, 500.0),
-             ("Ki", 100.0, 0.0, 500.0),
-             ("Kd", 100.0, 0.0, 500.0)],
-            start=3,
-        ):
-            ttk.Label(ctrl, text=name, width=4).grid(row=row_idx, column=0, sticky="w")
-
-            var = tk.DoubleVar(value=default)
-            self.gains[name] = var
-
-            slider = ttk.Scale(
-                ctrl, from_=lo, to=hi, variable=var, orient="horizontal", length=200,
-                command=lambda val, v=var: v.set(round(float(val), 2)),
+            ttk.Entry(left, textvariable=kp_var, width=10, justify="right").grid(
+                row=row, column=1, padx=4, pady=4
             )
-            slider.grid(row=row_idx, column=1, columnspan=4, padx=4)
+            ttk.Entry(left, textvariable=ki_var, width=10, justify="right").grid(
+                row=row, column=2, padx=4, pady=4
+            )
+            ttk.Entry(left, textvariable=kd_var, width=10, justify="right").grid(
+                row=row, column=3, padx=4, pady=4
+            )
+            ttk.Checkbutton(left, variable=active_var).grid(
+                row=row, column=4, padx=4, pady=4
+            )
 
-            entry = ttk.Entry(ctrl, textvariable=var, width=8)
-            entry.grid(row=row_idx, column=5, padx=4)
-            entry.bind("<Return>", lambda e, v=var, lo=lo, hi=hi: self._clamp(v, lo, hi))
+            self.joint_rows[j] = {"kp": kp_var, "ki": ki_var, "kd": kd_var, "active": active_var}
 
-        ttk.Separator(ctrl, orient="horizontal").grid(
-            row=6, column=0, columnspan=6, sticky="ew", pady=8
+        ttk.Separator(left, orient="horizontal").grid(
+            row=8, column=0, columnspan=5, sticky="ew", pady=8
         )
 
-        btn_frame = ttk.Frame(ctrl)
-        btn_frame.grid(row=7, column=0, columnspan=6)
+        btn_frame = ttk.Frame(left)
+        btn_frame.grid(row=9, column=0, columnspan=5)
 
         self.run_btn = ttk.Button(btn_frame, text="Run", command=self._on_run)
-        self.run_btn.pack(side="left", padx=6)
+        self.run_btn.pack(side="left", padx=8)
 
-        self.save_btn = ttk.Button(btn_frame, text="Save", command=self._on_save, state="disabled")
-        self.save_btn.pack(side="left", padx=6)
-
-        self.status_var = tk.StringVar(value="Ready")
-        ttk.Label(ctrl, textvariable=self.status_var, foreground="gray").grid(
-            row=8, column=0, columnspan=6, pady=(6, 0)
+        ttk.Button(btn_frame, text="Export Data", command=self._on_export).pack(
+            side="left", padx=8
         )
 
-    def _build_plot(self):
+        self.save_btn = ttk.Button(btn_frame, text="Save Graph", command=self._on_save, state="disabled")
+        self.save_btn.pack(side="left", padx=8)
+
+        self.status_var = tk.StringVar(value="Ready")
+        ttk.Label(left, textvariable=self.status_var, foreground="gray").grid(
+            row=10, column=0, columnspan=5, pady=(6, 0)
+        )
+
+        # Plot panel
         plot_frame = ttk.Frame(self.root, padding=(0, 12, 12, 12))
         plot_frame.grid(row=0, column=1, sticky="nsew")
 
@@ -98,50 +105,42 @@ class PIDTunerApp:
         self.canvas.draw()
         self.canvas.get_tk_widget().pack(fill="both", expand=True)
 
-    def _clamp(self, var, lo, hi):
-        try:
-            var.set(max(lo, min(hi, float(var.get()))))
-        except (tk.TclError, ValueError):
-            pass
+    def _active_joints(self):
+        return [j for j in range(1, 7) if self.joint_rows[j]["active"].get()]
 
     def _on_run(self):
-        # Kill any previous simulation process
-        if hasattr(self, "_sim_proc") and self._sim_proc and self._sim_proc.poll() is None:
+        active = self._active_joints()
+        if not active:
+            self.status_var.set("No joints selected.")
+            return
+
+        if self._sim_proc and self._sim_proc.poll() is None:
             self._sim_proc.terminate()
 
         self.run_btn.configure(state="disabled")
         self.save_btn.configure(state="disabled")
         self.status_var.set("Simulation running…")
 
-        joint = self.joint_var.get()
-        kp = self.gains["Kp"].get()
-        ki = self.gains["Ki"].get()
-        kd = self.gains["Kd"].get()
-
         if os.path.exists(PLOT_TMP):
             os.remove(PLOT_TMP)
 
-        cmd = [
-            MJPYTHON, MAIN_PY,
-            "--joint", str(joint),
-            "--kp", str(kp),
-            "--ki", str(ki),
-            "--kd", str(kd),
-            "--out", PLOT_TMP,
-        ]
+        configs = []
+        for j in active:
+            r = self.joint_rows[j]
+            configs.append(f"{j}:{r['kp'].get()}:{r['ki'].get()}:{r['kd'].get()}")
+
+        cmd = [MJPYTHON, MAIN_PY, "--joints", ",".join(configs), "--out", PLOT_TMP]
         self._sim_proc = subprocess.Popen(cmd)
 
         def watch():
             import time
             while True:
-                # Process died before saving the plot
                 if self._sim_proc.poll() is not None:
                     if not os.path.exists(PLOT_TMP):
                         self.root.after(0, lambda: self._on_error("Simulation exited before saving plot"))
                     else:
                         self.root.after(0, self._show_plot)
                     return
-                # Plot file appeared — simulation still running
                 if os.path.exists(PLOT_TMP):
                     self.root.after(0, self._show_plot)
                     return
@@ -171,16 +170,27 @@ class PIDTunerApp:
         self.status_var.set(f"Error: {msg}")
         self.run_btn.configure(state="normal")
 
+    def _on_export(self):
+        path = filedialog.asksaveasfilename(
+            defaultextension=".csv",
+            filetypes=[("CSV files", "*.csv")],
+            initialfile=f"pid_gains_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
+        )
+        if not path:
+            return
+        with open(path, "w", newline="") as f:
+            writer = csv.writer(f)
+            writer.writerow(["Joint", "Kp", "Ki", "Kd"])
+            for j in range(1, 7):
+                r = self.joint_rows[j]
+                writer.writerow([j, r["kp"].get(), r["ki"].get(), r["kd"].get()])
+        self.status_var.set(f"Exported → {os.path.basename(path)}")
+
     def _on_save(self):
         if not self._last_plot_path or not os.path.exists(self._last_plot_path):
             return
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        joint = self.joint_var.get()
-        dest = os.path.join(
-            os.path.dirname(__file__),
-            f"pid_j{joint}_{timestamp}.png",
-        )
-        import shutil
+        dest = os.path.join(os.path.dirname(__file__), f"pid_plot_{timestamp}.png")
         shutil.copy2(self._last_plot_path, dest)
         self.status_var.set(f"Saved → {os.path.basename(dest)}")
 
