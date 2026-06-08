@@ -19,19 +19,19 @@ def main():
     parser.add_argument("--out", type=str, default=None, help="Output plot path")
     args = parser.parse_args()
 
-    # Parse "1:100:10:5,3:50:5:2" → list of (0-based idx, kp, ki, kd)
+    # Parse "1:100:10:5:-1.5708,3:50:5:2:-1.5708" → list of (0-based idx, kp, ki, kd, target)
     joint_configs = []
     for entry in args.joints.split(","):
-        j, kp, ki, kd = entry.split(":")
-        joint_configs.append((int(j) - 1, float(kp), float(ki), float(kd)))
+        j, kp, ki, kd, tgt = entry.split(":")
+        joint_configs.append((int(j) - 1, float(kp), float(ki), float(kd), float(tgt)))
 
     model = mujoco.MjModel.from_xml_path(SCENE_XML)
     data = mujoco.MjData(model)
     dt = model.opt.timestep
 
-    controllers = {idx: PIDController(Kp=kp, Ki=ki, Kd=kd) for idx, kp, ki, kd in joint_configs}
+    controllers = {idx: PIDController(Kp=kp, Ki=ki, Kd=kd) for idx, kp, ki, kd, _ in joint_configs}
+    targets = {idx: tgt for idx, *_, tgt in joint_configs}
 
-    target = -1.5708
     steps_total = int(10 / dt)
     collect = {idx: [] for idx, *_ in joint_configs}
     count = 0
@@ -53,7 +53,7 @@ def main():
 
             for idx, controller in controllers.items():
                 data.qfrc_applied[idx] = controller.compute(
-                    dt, target, data.qpos[idx], data.qvel[idx]
+                    dt, targets[idx], data.qpos[idx], data.qvel[idx]
                 )
 
             mujoco.mj_step(model, data)
@@ -66,19 +66,23 @@ def main():
 
             if count == steps_total and not plot_saved:
                 out_path = args.out or os.path.join(os.path.dirname(__file__), "matplotlib_graph.png")
-                _save_plot(dt, collect, target, joint_configs, out_path)
+                _save_plot(dt, collect, joint_configs, out_path)
                 plot_saved = True
 
 
-def _save_plot(dt, collect, target, joint_configs, out_path):
+def _save_plot(dt, collect, joint_configs, out_path):
     steps = max(len(v) for v in collect.values())
     x_values = [i * dt for i in range(steps)]
 
     fig, ax = plt.subplots()
-    for idx, kp, ki, kd in joint_configs:
+    plotted_targets = set()
+    for idx, kp, ki, kd, tgt in joint_configs:
         ax.plot(x_values, collect[idx], label=f"Joint {idx + 1}")
+        if tgt not in plotted_targets:
+            ax.axhline(y=tgt, color="r", linestyle="--",
+                       label=f"Target ({tgt:.4f})" if len(plotted_targets) == 0 else f"Target ({tgt:.4f})")
+            plotted_targets.add(tgt)
 
-    ax.axhline(y=target, color="r", linestyle="--", label="Target")
     ax.set_xlim(0, 10)
     ax.set_xlabel("Time (sec)")
     ax.set_ylabel("Angle (rad)")

@@ -34,12 +34,12 @@ class PIDTunerApp:
         left.grid(row=0, column=0, sticky="ns")
 
         # Header row
-        for col, text in enumerate(["Joint", "Kp", "Ki", "Kd", "Active"]):
+        for col, text in enumerate(["Joint", "Kp", "Ki", "Kd", "Target (rad)", "Active"]):
             ttk.Label(left, text=text, width=10, anchor="center",
                       font=("", 10, "bold")).grid(row=0, column=col, padx=4, pady=4)
 
         ttk.Separator(left, orient="horizontal").grid(
-            row=1, column=0, columnspan=5, sticky="ew", pady=2
+            row=1, column=0, columnspan=6, sticky="ew", pady=2
         )
 
         self.joint_rows = {}
@@ -52,6 +52,7 @@ class PIDTunerApp:
             kp_var = tk.DoubleVar(value=0.0)
             ki_var = tk.DoubleVar(value=0.0)
             kd_var = tk.DoubleVar(value=0.0)
+            target_var = tk.DoubleVar(value=-1.5708)
             active_var = tk.BooleanVar(value=False)
 
             ttk.Entry(left, textvariable=kp_var, width=10, justify="right").grid(
@@ -63,18 +64,21 @@ class PIDTunerApp:
             ttk.Entry(left, textvariable=kd_var, width=10, justify="right").grid(
                 row=row, column=3, padx=4, pady=4
             )
-            ttk.Checkbutton(left, variable=active_var).grid(
+            ttk.Entry(left, textvariable=target_var, width=10, justify="right").grid(
                 row=row, column=4, padx=4, pady=4
             )
+            ttk.Checkbutton(left, variable=active_var).grid(
+                row=row, column=5, padx=4, pady=4
+            )
 
-            self.joint_rows[j] = {"kp": kp_var, "ki": ki_var, "kd": kd_var, "active": active_var}
+            self.joint_rows[j] = {"kp": kp_var, "ki": ki_var, "kd": kd_var, "target": target_var, "active": active_var}
 
         ttk.Separator(left, orient="horizontal").grid(
-            row=8, column=0, columnspan=5, sticky="ew", pady=8
+            row=8, column=0, columnspan=6, sticky="ew", pady=8
         )
 
         btn_frame = ttk.Frame(left)
-        btn_frame.grid(row=9, column=0, columnspan=5)
+        btn_frame.grid(row=9, column=0, columnspan=6)
 
         self.run_btn = ttk.Button(btn_frame, text="Run", command=self._on_run)
         self.run_btn.pack(side="left", padx=8)
@@ -88,7 +92,7 @@ class PIDTunerApp:
 
         self.status_var = tk.StringVar(value="Ready")
         ttk.Label(left, textvariable=self.status_var, foreground="gray").grid(
-            row=10, column=0, columnspan=5, pady=(6, 0)
+            row=10, column=0, columnspan=6, pady=(6, 0)
         )
 
         # Plot panel
@@ -127,7 +131,7 @@ class PIDTunerApp:
         configs = []
         for j in active:
             r = self.joint_rows[j]
-            configs.append(f"{j}:{r['kp'].get()}:{r['ki'].get()}:{r['kd'].get()}")
+            configs.append(f"{j}:{r['kp'].get()}:{r['ki'].get()}:{r['kd'].get()}:{r['target'].get()}")
 
         cmd = [MJPYTHON, MAIN_PY, "--joints", ",".join(configs), "--out", PLOT_TMP]
         self._sim_proc = subprocess.Popen(cmd)
@@ -180,10 +184,10 @@ class PIDTunerApp:
             return
         with open(path, "w", newline="") as f:
             writer = csv.writer(f)
-            writer.writerow(["Joint", "Kp", "Ki", "Kd"])
+            writer.writerow(["Joint", "Kp", "Ki", "Kd", "Target (rad)"])
             for j in range(1, 7):
                 r = self.joint_rows[j]
-                writer.writerow([j, r["kp"].get(), r["ki"].get(), r["kd"].get()])
+                writer.writerow([j, r["kp"].get(), r["ki"].get(), r["kd"].get(), r["target"].get()])
         self.status_var.set(f"Exported → {os.path.basename(path)}")
 
     def _on_save(self):

@@ -39,14 +39,15 @@ $$u(t) = K_p e(t) + K_i \int_{0}^{t} e(\tau) d\tau + K_d \frac{de(t)}{dt}$$
 Where:
 - $e(t)$ is the current error.
 - $K_p$, $K_i$, and $K_d$ are the gains (tuning constants) that engineers adjust to make the controller responsive, stable, and accurate.
+- $$u(t) is the output signal
 
 The error will be calculated by taking the difference of the target and current position. The gains of $K_p$, $K_i$, and $K_d$ are the parameters I will be adjusting to tune the UR5e robot.
 
 ---
 
-## Testing Kp, Ki, Kd limits
+## Tuning Gains Kp, Ki, Kd
 
-I created a separate controllers class to initialize and better control each joint of the 6 DOF robot in an isolated manner. Setting my target to -90 degrees or -1.5708 rad allowed me to visualize relative accuracy of the joint. Joint 6 was my first joint I tested. Starting from a **Kp** value of 10, I progressively increased the gain.
+I created a separate controllers class to initialize and better control each joint of the 6 DOF robot in an isolated manner. Setting my target to -90 degrees or -1.5708 rad allowed me to visualize/estimate relative accuracy of the joint. Joint 6 was my first joint I tested. Starting from a **Kp** value of 10, I progressively increased the gain.
 
 At a certain point, the joint became unstable and started to oscillate. At this point I had 2 problems: using Kp alone either caused the arm to never reach its target position or it would oscillate, although in steady state. I also needed a quantitative method of observing the joint movement.
 
@@ -72,8 +73,16 @@ I also did a sweep of Kp values 0–100 in increments of 10 and 0–300 in incre
 
 ![Kp sweep 0–300](images/joint6_Kp_300_sweep.png)
 
-This confirmed my observations from earlier.
+This confirmed my oscillation observations from earlier.
 
+### GUI
+
+Up to this point, I had been hardcoding the values of the gains of each joint one at a time. This was not going to be a viable solution if I was going to keep track of all gains of each joint. A quick search for a third party software that graphs and organizes my data did not yield a result that met my needs. So far, Matplotlib was the best solution for collecting and graphing data with python. Therefore, with the help of AI, I created a simple GUI around my graphing functions.
+
+![GUI](images/gui.png)
+
+
+The new GUI allows me to 
 ---
 
 ## Plan to track data and optimize gains
