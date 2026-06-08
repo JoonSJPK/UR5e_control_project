@@ -1,4 +1,5 @@
 import argparse
+import csv
 import os
 
 import matplotlib
@@ -17,6 +18,7 @@ def main():
     parser.add_argument("--joints", type=str, required=True,
                         help="Comma-separated configs: joint:kp:ki:kd,...")
     parser.add_argument("--out", type=str, default=None, help="Output plot path")
+    parser.add_argument("--data-out", type=str, default=None, help="Output CSV data path")
     args = parser.parse_args()
 
     # Parse "1:100:10:5:-1.5708,3:50:5:2:-1.5708" → list of (0-based idx, kp, ki, kd, target)
@@ -67,7 +69,20 @@ def main():
             if count == steps_total and not plot_saved:
                 out_path = args.out or os.path.join(os.path.dirname(__file__), "matplotlib_graph.png")
                 _save_plot(dt, collect, joint_configs, out_path)
+                if args.data_out:
+                    _save_csv(dt, collect, joint_configs, args.data_out)
                 plot_saved = True
+
+
+def _save_csv(dt, collect, joint_configs, out_path):
+    steps = max(len(v) for v in collect.values())
+    x_values = [i * dt for i in range(steps)]
+    headers = ["time"] + [f"joint_{idx + 1}" for idx, *_ in joint_configs]
+    with open(out_path, "w", newline="") as f:
+        writer = csv.writer(f)
+        writer.writerow(headers)
+        for i, t in enumerate(x_values):
+            writer.writerow([t] + [collect[idx][i] for idx, *_ in joint_configs])
 
 
 def _save_plot(dt, collect, joint_configs, out_path):

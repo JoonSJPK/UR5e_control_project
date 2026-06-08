@@ -1,4 +1,4 @@
-## Task 1 Objectives
+## Task 1 (Joint Control) Objectives
 
 - Install MuJoCo and load the UR5e model from MuJoCo Menagerie.
 - Design one simple target object in Fusion360, then export it to MJCF or URDF using a tool such as fusion2urdf, and place it in the MuJoCo scene.
@@ -43,6 +43,8 @@ Where:
 
 The error will be calculated by taking the difference of the target and current position. The gains of $K_p$, $K_i$, and $K_d$ are the parameters I will be adjusting to tune the UR5e robot.
 
+https://ctms.engin.umich.edu/CTMS/index.php?example=Introduction&section=ControlPID
+
 ---
 
 ## Tuning Gains Kp, Ki, Kd
@@ -77,12 +79,62 @@ This confirmed my oscillation observations from earlier.
 
 ### GUI
 
-Up to this point, I had been hardcoding the values of the gains of each joint one at a time. This was not going to be a viable solution if I was going to keep track of all gains of each joint. A quick search for a third party software that graphs and organizes my data did not yield a result that met my needs. So far, Matplotlib was the best solution for collecting and graphing data with python. Therefore, with the help of AI, I created a simple GUI around my graphing functions.
+Up to this point, I had been hardcoding the values of the gains of each joint one at a time. This was not going to be a viable solution if I was going to keep track of all gains of each joint. A quick search for a third party software that graphs and organizes my data did not yield a result that met my needs. Therefore, with the help of AI, I created a simple GUI around my graphing functions.
 
 ![GUI](images/gui.png)
 
+The new GUI allows each joint of the 6 dof robot to have adjustable PID gains, an adjustable target position, and a activation state (allows me to activate any combination of joints). The graph also now plots all activated joints.
 
-The new GUI allows me to 
+### Tuning
+
+For consistency, I chose all joints to have a target positon of -1.5708 rad. This position allows me to easily observe any oscillations that may occur while lessening the risk of the arm hitting the ground. Also, for this first stage, only 1 joint will be activated at a time while all other joints set to the default 0 rad position.
+
+I seperated the 6 joints into 2 categories: joints that would be fighting gravity (categority 1) and joints that would not (category 2). I chose to tune the joints that would be fighting gravity on activation first (joints 2, 3, 4, and 6).
+
+Of the category 1 joints, I chose to tune joint 2 first because it has the greateset moment of inertia (I = mr^2).
+
+The first method I tried was the Ziegler–Nichols tuning method. This method first sets the I and D gains to zero. The P gain is then slowly increased from zero until it reaches a state where the output has stable steady state oscillations. The P gain associated with this state is called the ultimate gain, $K_u$. Next the oscillation period $T_u$ is found. Using $K_u$ and $T_u$, Kp, Ki, and Kd are set.
+
+![Ziegler–Nichols Method](images/Ziegler–Nichols_method.png)
+
+https://en.wikipedia.org/wiki/Ziegler%E2%80%93Nichols_method
+
+The steady state oscillations started at 140. I first tried using the PD equations; however, no matter how high the D term was, the arm never reached it's target postion. I believe this was due to the heavy mass of the arm and the fact that this heavy arm is fighting gravity on its way up.
+
+![Joint 2 Kp = 140](images/joint2_Kp140.png)
+
+![Joint 2 Kd = 1000](images/joint2_Kd1000.png)
+
+The arm was not reaching its target postion, so I tried adjusting the Integral term by calculating its classic PID values from the table above.
+
+Using collected data, I found the period of oscillation, Tu, to be 0.984 sec.
+
+Ku = 140
+Tu ~ 1
+Kp = 0.6Ku = 84
+Ki = (1.2Ku) / Tu = 168
+Kd = 0.075KuTu = 10.5
+
+The result was another steady state oscillations. I noticed two problems about the movement of the arm. It had a sluggish start at the beginning and the steady oscillations.
+
+![Ziegler Oscillations](images/Ziegler_oscillations.png)
+
+I was able turn the steady oscillation into a damped oscillation by increasing the derivative term to 50.
+
+![Damped Oscillation](images/damped_oscillation.png)
+
+The next problem I solved was the sluggish start. Ziegler-Nicholas method did not account for the large mass the joint would be moving. Therefore I increased the Proportional gain. Kp = 250. This made a dramatic improvement. This removed the sluggish start and removed any oscillations and overshooting.
+
+![Kp = 250](images/Kp_increase.png)
+
+The next step was just seeing how far I could increase the Integral term without the output overshooting the target. The experimental value was Ki = 190.
+
+![Ki = 190](images/Kp_increase.png)
+
+The final gains for joint 2 were the following: Kp = 220, Ki = 190, Kd = 50.
+
+
+
 ---
 
 ## Plan to track data and optimize gains

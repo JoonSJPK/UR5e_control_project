@@ -16,6 +16,7 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
 MAIN_PY = os.path.join(os.path.dirname(__file__), "main.py")
 PLOT_TMP = os.path.join(os.path.dirname(__file__), "_gui_tmp_plot.png")
+DATA_TMP = os.path.join(os.path.dirname(__file__), "_gui_tmp_data.csv")
 MJPYTHON = os.path.join(os.path.dirname(sys.executable), "mjpython")
 
 
@@ -83,9 +84,12 @@ class PIDTunerApp:
         self.run_btn = ttk.Button(btn_frame, text="Run", command=self._on_run)
         self.run_btn.pack(side="left", padx=8)
 
-        ttk.Button(btn_frame, text="Export Data", command=self._on_export).pack(
+        ttk.Button(btn_frame, text="Export Gains", command=self._on_export_gains).pack(
             side="left", padx=8
         )
+
+        self.export_data_btn = ttk.Button(btn_frame, text="Export Data", command=self._on_export_data, state="disabled")
+        self.export_data_btn.pack(side="left", padx=8)
 
         self.save_btn = ttk.Button(btn_frame, text="Save Graph", command=self._on_save, state="disabled")
         self.save_btn.pack(side="left", padx=8)
@@ -123,17 +127,20 @@ class PIDTunerApp:
 
         self.run_btn.configure(state="disabled")
         self.save_btn.configure(state="disabled")
+        self.export_data_btn.configure(state="disabled")
         self.status_var.set("Simulation running…")
 
         if os.path.exists(PLOT_TMP):
             os.remove(PLOT_TMP)
+        if os.path.exists(DATA_TMP):
+            os.remove(DATA_TMP)
 
         configs = []
         for j in active:
             r = self.joint_rows[j]
             configs.append(f"{j}:{r['kp'].get()}:{r['ki'].get()}:{r['kd'].get()}:{r['target'].get()}")
 
-        cmd = [MJPYTHON, MAIN_PY, "--joints", ",".join(configs), "--out", PLOT_TMP]
+        cmd = [MJPYTHON, MAIN_PY, "--joints", ",".join(configs), "--out", PLOT_TMP, "--data-out", DATA_TMP]
         self._sim_proc = subprocess.Popen(cmd)
 
         def watch():
@@ -168,13 +175,15 @@ class PIDTunerApp:
         self._last_plot_path = PLOT_TMP
         self.run_btn.configure(state="normal")
         self.save_btn.configure(state="normal")
+        if os.path.exists(DATA_TMP):
+            self.export_data_btn.configure(state="normal")
         self.status_var.set("Done.")
 
     def _on_error(self, msg):
         self.status_var.set(f"Error: {msg}")
         self.run_btn.configure(state="normal")
 
-    def _on_export(self):
+    def _on_export_gains(self):
         path = filedialog.asksaveasfilename(
             defaultextension=".csv",
             filetypes=[("CSV files", "*.csv")],
@@ -188,6 +197,20 @@ class PIDTunerApp:
             for j in range(1, 7):
                 r = self.joint_rows[j]
                 writer.writerow([j, r["kp"].get(), r["ki"].get(), r["kd"].get(), r["target"].get()])
+        self.status_var.set(f"Exported → {os.path.basename(path)}")
+
+    def _on_export_data(self):
+        if not os.path.exists(DATA_TMP):
+            self.status_var.set("No simulation data to export.")
+            return
+        path = filedialog.asksaveasfilename(
+            defaultextension=".csv",
+            filetypes=[("CSV files", "*.csv")],
+            initialfile=f"sim_data_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
+        )
+        if not path:
+            return
+        shutil.copy2(DATA_TMP, path)
         self.status_var.set(f"Exported → {os.path.basename(path)}")
 
     def _on_save(self):
