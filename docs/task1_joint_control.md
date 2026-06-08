@@ -80,3 +80,21 @@ This confirmed my observations from earlier.
 
 - PD is enough because gravity compensation is included in the UR5e XML.
 - $\frac{d}{dt}(\text{error}) = \frac{d}{dt}(\text{target} - \text{current}) = -\frac{d}{dt}(\text{current}) = -\text{velocity}$
+
+
+
+problem I had. Resetting the simulation gave different results
+
+ def reset(self):
+    self.integral = 0.0
+
+  # Detect viewer reset (Backspace) — data.time jumps back to 0
+  if data.time < prev_time:
+      for c in controllers:
+          c.reset()
+      collect_rad.clear()
+      count = 0
+  prev_time = data.time
+
+
+  Joint 2 (The Shoulder) is a fight against Gravity: Because Joint 2 moves up and down, it is constantly lifting the dead weight of the arm. When it is flat, gravity has maximum leverage against it.Tuning Impact: It requires a massive Proportional gain ($K_p$) and a strong Integral gain ($K_i$) just to counteract gravity and hold its position. Without a high $K_i$, it will stall out or sag before reaching the target.Joint 1 (The Base) is a fight against Inertia: Because Joint 1 rotates left and right parallel to the ground, gravity doesn't pull it down. It doesn't need to struggle to stay in place once it stops.Tuning Impact: It needs very little to no Integral gain ($K_i$). Instead, the main challenge is starting and stopping the swinging mass.

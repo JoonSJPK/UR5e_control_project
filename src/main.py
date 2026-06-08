@@ -32,9 +32,18 @@ def main():
   target = -1.5708
   collect_rad = []
   count = 0
+  prev_time = 0.0
 
   with mujoco.viewer.launch_passive(model, data) as viewer:
     while viewer.is_running():
+
+        # Detect viewer reset (Backspace) — data.time jumps back to 0
+        if data.time < prev_time:
+            for c in controllers:
+                c.reset()
+            collect_rad.clear()
+            count = 0
+        prev_time = data.time
 
         #for i in range(len(target)):
            #torques = controllers[i].compute(dt, target[i], data.qpos[i], data.qvel[i])

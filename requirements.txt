@@ -5,5 +5,5 @@ mujoco==3.9.0
 robot-descriptions==1.11.0
 
 # Numerical and Plotting
-numpy==1.26.4
-matplotlib==3.8.4
+numpy>=2.0
+matplotlib>=3.9

@@ -12,6 +12,9 @@ class PIDController:
     self.Kd = Kd
     self.integral = 0.0
 
+  def reset(self):
+    self.integral = 0.0
+
   def compute(self, dt, target_qpos, curr_qpos, curr_qvel):
     error = target_qpos - curr_qpos
     self.integral += error * dt
