@@ -30,6 +30,9 @@ build/
 !docs/task2_images/*.png
 !docs/task2_images/*.jpg
 
+# Allow data in docs
+!docs/task1_data/*.csv
+
 # MuJoCo
 *.mjb
 MUJOCO_LOG.TXT
