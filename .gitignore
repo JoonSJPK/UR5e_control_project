@@ -25,11 +25,14 @@ build/
 *.npy
 
 # Allow images in docs
-!docs/**/*.png
-!docs/**/*.jpg
+!docs/task1_images/*.png
+!docs/task1_images/*.jpg
+!docs/task2_images/*.png
+!docs/task2_images/*.jpg
 
 # MuJoCo
 *.mjb
+MUJOCO_LOG.TXT
 
 # macOS
 .DS_Store

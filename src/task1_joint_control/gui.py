@@ -14,7 +14,7 @@ import matplotlib.image as mpimg
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
-MAIN_PY = os.path.join(os.path.dirname(__file__), "main.py")
+MAIN_PY = "task1_joint_control.joint_control"
 PLOT_TMP = os.path.join(os.path.dirname(__file__), "_gui_tmp_plot.png")
 DATA_TMP = os.path.join(os.path.dirname(__file__), "_gui_tmp_data.csv")
 MJPYTHON = os.path.join(os.path.dirname(sys.executable), "mjpython")
@@ -140,8 +140,8 @@ class PIDTunerApp:
             r = self.joint_rows[j]
             configs.append(f"{j}:{r['kp'].get()}:{r['ki'].get()}:{r['kd'].get()}:{r['target'].get()}")
 
-        cmd = [MJPYTHON, MAIN_PY, "--joints", ",".join(configs), "--out", PLOT_TMP, "--data-out", DATA_TMP]
-        self._sim_proc = subprocess.Popen(cmd)
+        cmd = [MJPYTHON, "-m", MAIN_PY, "--joints", ",".join(configs), "--out", PLOT_TMP, "--data-out", DATA_TMP]
+        self._sim_proc = subprocess.Popen(cmd, cwd=os.path.join(os.path.dirname(__file__), ".."))
 
         def watch():
             import time

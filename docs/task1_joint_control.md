@@ -10,7 +10,7 @@
 
 Test object, a bottle, was made in Fusion360 and exported to a MuJoCo scene through the fusion2urdf tool. The UR5e model from MuJoCo Menagerie was placed into the scene alongside the test object.
 
-![Test bottle in MuJoCo scene](images/test_bottle.png)
+![Test bottle in MuJoCo scene](task1_images/test_bottle.png)
 
 ---
 
@@ -67,13 +67,13 @@ if(count == steps):
     count += 1
 ```
 
-![Joint 6 Kp=10](images/joint6_Kp10.png)
+![Joint 6 Kp=10](task1_images/joint6_Kp10.png)
 
 I also did a sweep of Kp values 0–100 in increments of 10 and 0–300 in increments of 50 while keeping Ki and Kd constant at 0.
 
-![Kp sweep 0–100](images/joint6_Kp_100_sweep.png)
+![Kp sweep 0–100](task1_images/joint6_Kp_100_sweep.png)
 
-![Kp sweep 0–300](images/joint6_Kp_300_sweep.png)
+![Kp sweep 0–300](task1_images/joint6_Kp_300_sweep.png)
 
 This confirmed my oscillation observations from earlier.
 
@@ -81,7 +81,7 @@ This confirmed my oscillation observations from earlier.
 
 Up to this point, I had been hardcoding the values of the gains of each joint one at a time. This was not going to be a viable solution if I was going to keep track of all gains of each joint. A quick search for a third party software that graphs and organizes my data did not yield a result that met my needs. Therefore, with the help of AI, I created a simple GUI around my graphing functions.
 
-![GUI](images/gui.png)
+![GUI](task1_images/gui.png)
 
 The new GUI allows each joint of the 6 dof robot to have adjustable PID gains, an adjustable target position, and a activation state (allows me to activate any combination of joints). The graph also now plots all activated joints.
 
@@ -95,15 +95,15 @@ Of the category 1 joints, I chose to tune joint 2 first because it has the great
 
 The first method I tried was the Ziegler–Nichols tuning method. This method first sets the I and D gains to zero. The P gain is then slowly increased from zero until it reaches a state where the output has stable steady state oscillations. The P gain associated with this state is called the ultimate gain, $K_u$. Next the oscillation period $T_u$ is found. Using $K_u$ and $T_u$, Kp, Ki, and Kd are set.
 
-![Ziegler–Nichols Method](images/Ziegler–Nichols_method.png)
+![Ziegler–Nichols Method](task1_images/Ziegler–Nichols_method.png)
 
 https://en.wikipedia.org/wiki/Ziegler%E2%80%93Nichols_method
 
 The steady state oscillations started at 140. I first tried using the PD equations; however, no matter how high the D term was, the arm never reached it's target postion. I believe this was due to the heavy mass of the arm and the fact that this heavy arm is fighting gravity on its way up.
 
-![Joint 2 Kp = 140](images/joint2_Kp140.png)
+![Joint 2 Kp = 140](task1_images/joint2_Kp140.png)
 
-![Joint 2 Kd = 1000](images/joint2_Kd1000.png)
+![Joint 2 Kd = 1000](task1_images/joint2_Kd1000.png)
 
 The arm was not reaching its target postion, so I tried adjusting the Integral term by calculating its classic PID values from the table above.
 
@@ -117,34 +117,34 @@ Kd = 0.075KuTu = 10.5
 
 I noticed two problems about the movement of the arm with these settings. It had a sluggish start at the beginning and the underdamped oscillations.
 
-![Ziegler Oscillations](images/Ziegler_oscillations.png)
+![Ziegler Oscillations](task1_images/Ziegler_oscillations.png)
 
 I was able turn the undamped oscillation into a underdamped oscillation by increasing the derivative term to 50.
 
-![Damped Oscillation](images/damped_oscillation.png)
+![Damped Oscillation](task1_images/damped_oscillation.png)
 
 The next problem I solved was the sluggish start. Ziegler-Nicholas method did not account for the large mass the joint would be moving. Therefore I increased the Proportional gain. Kp = 250. This made a dramatic improvement. This removed the sluggish start and removed any oscillations and overshooting.
 
-![Kp = 250](images/Kp_increase.png)
+![Kp = 250](task1_images/Kp_increase.png)
 
 The next step was just seeing how far I could increase the Integral term without the output overshooting the target. The experimental value was Ki = 190.
 
-![Ki = 190](images/Kp_increase.png)
+![Ki = 190](task1_images/Kp_increase.png)
 
 The final gains for joint 2 were the following: Kp = 220, Ki = 190, Kd = 50.
 
 <table>
   <tr>
-    <td><img src="images/joint3.png" alt="Joint 3" width="320"/></td>
-    <td><img src="images/joint4_overshoot.png" alt="Joint 4 Overshoot" width="320"/></td>
+    <td><img src="task1_images/joint3.png" alt="Joint 3" width="320"/></td>
+    <td><img src="task1_images/joint4_overshoot.png" alt="Joint 4 Overshoot" width="320"/></td>
   </tr>
   <tr>
-    <td><img src="images/joint4_fix.png" alt="Joint 4 Fix" width="320"/></td>
-    <td><img src="images/joint6.png" alt="Joint 6" width="320"/></td>
+    <td><img src="task1_images/joint4_fix.png" alt="Joint 4 Fix" width="320"/></td>
+    <td><img src="task1_images/joint6.png" alt="Joint 6" width="320"/></td>
   </tr>
 </table>
 
-![Category1_joints](images/category1_joints.png)
+![Category1_joints](task1_images/category1_joints.png)
 
 
 ---
