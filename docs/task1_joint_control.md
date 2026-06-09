@@ -113,9 +113,13 @@ The arm was not reaching its target postion, so I tried adjusting the Integral t
 Using collected data, I found the period of oscillation, Tu, to be 0.984 sec.
 
 Ku = 140
+
 Tu ~ 1
+
 Kp = 0.6Ku = 84
+
 Ki = (1.2Ku) / Tu = 168
+
 Kd = 0.075KuTu = 10.5
 
 I noticed two problems about the movement of the arm with these settings. It had a sluggish start at the beginning and the underdamped oscillations.
