@@ -29,6 +29,8 @@ def main():
   trans_time = dt * 4000
   #trans_state = [0, 1, 2]
 
+  #integrate trapazoid velocity equation to get positions
+
   with mujoco.viewer.launch_passive(model, data) as viewer:
         while viewer.is_running():
             

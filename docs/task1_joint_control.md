@@ -93,6 +93,8 @@ I seperated the 6 joints into 2 categories: joints that would be fighting gravit
 
 Of the category 1 joints, I chose to tune joint 2 first because it has the greateset moment of inertia (I = mr^2).
 
+## Category 1 Tuning (Joint 2, 3, 4, 6)
+
 The first method I tried was the Ziegler–Nichols tuning method. This method first sets the I and D gains to zero. The P gain is then slowly increased from zero until it reaches a state where the output has stable steady state oscillations. The P gain associated with this state is called the ultimate gain, $K_u$. Next the oscillation period $T_u$ is found. Using $K_u$ and $T_u$, Kp, Ki, and Kd are set.
 
 ![Ziegler–Nichols Method](task1_images/Ziegler–Nichols_method.png)
@@ -133,6 +135,7 @@ The next step was just seeing how far I could increase the Integral term without
 
 The final gains for joint 2 were the following: Kp = 220, Ki = 190, Kd = 50.
 
+Applying the same gains to joint 3 gave similar results to joint 2, although reaching its target position in a slightly greater amount of time. I increased the Integral gain of joint 3 until a overshoot of the target position was seen, from which the gain was dialed back. Applying the same gains as joint 2 for joint 4 led to an overshoot of the target. An overshoot signaled an Integral gain that is too large. Reducing the Integral gain to Ki = 70 removed this overshoot of the target position. As you move up each joint of this 6 DOF robot, each joint progressivly holds less mass. This explains the need to reduce the Integral gain as you tune joints closer to the end effector. Applying this logic, joint 6 was given the same gains as the tuned joint 4. No overshoot was observed.
 <table>
   <tr>
     <td><img src="task1_images/joint3.png" alt="Joint 3" width="320"/></td>
@@ -144,33 +147,58 @@ The final gains for joint 2 were the following: Kp = 220, Ki = 190, Kd = 50.
   </tr>
 </table>
 
+By tuning each category 1 joint individually, each joint was tuned during a state of max load from gravity. Assuming static PID gains, this would prevent any overshooting in other arbitrary positions. However, this would also mean each joint would be overdampened in any other position to some extent. A simple test of moving all category 1 joints to -1.5708 rad at once showed no overshoot.
+
 ![Category1_joints](task1_images/category1_joints.png)
 
+## Category 2 Tuning (Joints 1 and 5)
+
+Applying my baseline gains of Kp = 220, Ki = 190, Kd = 50 to joint 1 predictively resulted in a graph that showed the joint reaching the target position at a slower rate (>4 sec). This makes sense because of the greater mass joint 1 is moving.
+
+![Joint 1 Slow](task1_images/joint1_slow.png)
+
+Increasing the Ki to 300 improved the result by decreasing the amount of time it takes for joint 1 to reach the target position.
+
+![Joint 1 Fixed](task1_images/joint1_fixed.png)
+
+Applying gains from joint 4 that took into account the decreased mass to joint 5 gave good results.
+
+![Joint 5](task1_images/joint5.png)
+
+Testing both tuned category 2 joints at the same time (both target positions being -1.5708 rad) gave good, consistent results.
+
+![Category 2](task1_images/category2.png)
+
+Testing all 6 joints (target position = -1.5708 rad) gave unexpected results. There was overshoot in joints 1 and 2
+
+![All 6 Joints Overshoot](task1_images/all_6_joints_overshoot.png)
+
+In my earlier analysis, I wrongly predicted any arbitrary position outside of max load would not result in overshoot. I hypothesised any arbitrary position would be in a state of being overdamped relative to the max load position.
+
+What I failed to understand was coupled dynamics, only considering gravity load variation. The full equation of motion describing this robot arm is the following:
+
+M(q) q̈  +  C(q, q̇) q̇  +  g(q)  =  τ
+
+https://publish.illinois.edu/ece470-intro-robotics/files/2021/10/ECE470FA21Lec16.pdf
+https://www.youtube.com/watch?v=wyALKpgSyls&t=54s
+
+M(q) describing the inertia matrix. C(q, q̇) describing the Coriolis/centripetal terms which only show up when the joints are moving at the same time. g(q) describes the gravity term. When tuning the joints individually C was equal to 0. When all 6 joints moved simultaneously, 2 things changed: the Coriolis/centripital term appears due to simultaneous movement and the moment of inertia changes. Compared to individual tuning conditions, the moment of inertia decreased (classic ice skater bringing in thier arms problem). Therefore, my Ki is too "aggressive" which led to the overshoot. Reducing the Ki values of joints 1 and 2 resulted in no overshoot
+
+![All 6 Joints Fixed](task1_images/all_6_joints_fixed.png)
+![Configuration 1](task1_images/configuration1.png)
+
+I tested a new configuration to test these new gains. The results show no overshoot.
+
+![All 6 Joints Fixed: Different positions](task1_images/all_6_joints_fixed2.png)
+![Configuration 2](task1_images/configuration2.png)
+
+### Conclusion
+
+A PID controller was successfully implemented and tuned for each joint of the UR5e robot by directly applying joint torques in MuJoCo. Joints were categorized by gravity load and tuned individually using a modified Ziegler–Nichols approach, with gains adjusted experimentally to eliminate steady-state error and overshoot. When all 6 joints were driven simultaneously, unexpected overshoot appeared in joints 1 and 2. This was caused by coupled dynamics: the Coriolis terms introduced by simultaneous joint motion and a reduction in effective moment of inertia made the tuned gains too aggressive. Reducing the integral gains of joints 1 and 2 fixed the overshoot. The results highlight the limitation that gains tuned in isolation cannot fully account for the configuration-dependent, coupled dynamics of the arm under simultaneous joint motion.
 
 ---
 
-## Plan to track data and optimize gains
 
-- PD is enough because gravity compensation is included in the UR5e XML.
-- $\frac{d}{dt}(\text{error}) = \frac{d}{dt}(\text{target} - \text{current}) = -\frac{d}{dt}(\text{current}) = -\text{velocity}$
-
-
-
-problem I had. Resetting the simulation gave different results
-
- def reset(self):
-    self.integral = 0.0
-
-  # Detect viewer reset (Backspace) — data.time jumps back to 0
-  if data.time < prev_time:
-      for c in controllers:
-          c.reset()
-      collect_rad.clear()
-      count = 0
-  prev_time = data.time
-
-
-  Joint 2 (The Shoulder) is a fight against Gravity: Because Joint 2 moves up and down, it is constantly lifting the dead weight of the arm. When it is flat, gravity has maximum leverage against it.Tuning Impact: It requires a massive Proportional gain ($K_p$) and a strong Integral gain ($K_i$) just to counteract gravity and hold its position. Without a high $K_i$, it will stall out or sag before reaching the target.Joint 1 (The Base) is a fight against Inertia: Because Joint 1 rotates left and right parallel to the ground, gravity doesn't pull it down. It doesn't need to struggle to stay in place once it stops.Tuning Impact: It needs very little to no Integral gain ($K_i$). Instead, the main challenge is starting and stopping the swinging mass.
 
 
 
