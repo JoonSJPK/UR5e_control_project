@@ -10,7 +10,8 @@
 
 Test object, a bottle, was made in Fusion360 and exported to a MuJoCo scene through the fusion2urdf tool. The UR5e model from MuJoCo Menagerie was placed into the scene alongside the test object.
 
-![Test bottle in MuJoCo scene](task1_images/test_bottle.png)
+![Test bottle](task1_images/test_bottle.png)
+![Test bottle in MuJoCo scene](task1_images/test_bottle_scene.png)
 
 ---
 
