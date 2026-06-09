@@ -11,7 +11,12 @@
 Test object, a bottle, was made in Fusion360 and exported to a MuJoCo scene through the fusion2urdf tool. The UR5e model from MuJoCo Menagerie was placed into the scene alongside the test object.
 
 ![Test bottle](task1_images/test_bottle.png)
+
+*Figure 1: Bottle model designed in Fusion360*
+
 ![Test bottle in MuJoCo scene](task1_images/test_bottle_scene.png)
+
+*Figure 2: UR5e and bottle placed in MuJoCo scene*
 
 ---
 
@@ -70,11 +75,17 @@ if(count == steps):
 
 ![Joint 6 Kp=10](task1_images/joint6_Kp10.png)
 
+*Figure 3: Joint 6 response with Kp=10, Ki=Kd=0*
+
 I also did a sweep of Kp values 0–100 in increments of 10 and 0–300 in increments of 50 while keeping Ki and Kd constant at 0.
 
 ![Kp sweep 0–100](task1_images/joint6_Kp_100_sweep.png)
 
+*Figure 4: Joint 6 Kp sweep 0–100, Ki=Kd=0*
+
 ![Kp sweep 0–300](task1_images/joint6_Kp_300_sweep.png)
+
+*Figure 5: Joint 6 Kp sweep 0–300, Ki=Kd=0*
 
 This confirmed my oscillation observations from earlier.
 
@@ -83,6 +94,8 @@ This confirmed my oscillation observations from earlier.
 Up to this point, I had been hardcoding the values of the gains of each joint one at a time. This was not going to be a viable solution if I was going to keep track of all gains of each joint. A quick search for a third party software that graphs and organizes my data did not yield a result that met my needs. Therefore, with the help of AI, I created a simple GUI around my graphing functions.
 
 ![GUI](task1_images/gui.png)
+
+*Figure 6: Custom PID tuning GUI with per-joint gain controls and plotting*
 
 The new GUI allows each joint of the 6 dof robot to have adjustable PID gains, an adjustable target position, and a activation state (allows me to activate any combination of joints). The graph also now plots all activated joints.
 
@@ -100,13 +113,19 @@ The first method I tried was the Ziegler–Nichols tuning method. This method fi
 
 ![Ziegler–Nichols Method](task1_images/Ziegler–Nichols_method.png)
 
+*Figure 7: Ziegler–Nichols gain table*
+
 https://en.wikipedia.org/wiki/Ziegler%E2%80%93Nichols_method
 
 The steady state oscillations started at 140. I first tried using the PD equations; however, no matter how high the D term was, the arm never reached it's target postion. I believe this was due to the heavy mass of the arm and the fact that this heavy arm is fighting gravity on its way up.
 
 ![Joint 2 Kp = 140](task1_images/joint2_Kp140.png)
 
+*Figure 8: Joint 2 at ultimate gain Kp=140, steady-state oscillation*
+
 ![Joint 2 Kd = 1000](task1_images/joint2_Kd1000.png)
+
+*Figure 9: Joint 2 with Kd=1000, arm fails to reach target*
 
 The arm was not reaching its target postion, so I tried adjusting the Integral term by calculating its classic PID values from the table above.
 
@@ -126,29 +145,37 @@ I noticed two problems about the movement of the arm with these settings. It had
 
 ![Ziegler Oscillations](task1_images/Ziegler_oscillations.png)
 
+*Figure 10: Joint 2 with Ziegler–Nichols gains, sluggish start and underdamped oscillations*
+
 I was able turn the undamped oscillation into a underdamped oscillation by increasing the derivative term to 50.
 
 ![Damped Oscillation](task1_images/damped_oscillation.png)
+
+*Figure 11: Joint 2 with Kd increased to 50, oscillations damped*
 
 The next problem I solved was the sluggish start. Ziegler-Nicholas method did not account for the large mass the joint would be moving. Therefore I increased the Proportional gain. Kp = 250. This made a dramatic improvement. This removed the sluggish start and removed any oscillations and overshooting.
 
 ![Kp = 250](task1_images/Kp_increase.png)
 
+*Figure 12: Joint 2 with Kp increased to 250, sluggish start resolved*
+
 The next step was just seeing how far I could increase the Integral term without the output overshooting the target. The experimental value was Ki = 190.
 
 ![Ki = 190](task1_images/Kp_increase.png)
+
+*Figure 13: Joint 2 final tuned gains (Kp=220, Ki=190, Kd=50)*
 
 The final gains for joint 2 were the following: Kp = 220, Ki = 190, Kd = 50.
 
 Applying the same gains to joint 3 gave similar results to joint 2, although reaching its target position in a slightly greater amount of time. I increased the Integral gain of joint 3 until a overshoot of the target position was seen, from which the gain was dialed back. Applying the same gains as joint 2 for joint 4 led to an overshoot of the target. An overshoot signaled an Integral gain that is too large. Reducing the Integral gain to Ki = 70 removed this overshoot of the target position. As you move up each joint of this 6 DOF robot, each joint progressivly holds less mass. This explains the need to reduce the Integral gain as you tune joints closer to the end effector. Applying this logic, joint 6 was given the same gains as the tuned joint 4. No overshoot was observed.
 <table>
   <tr>
-    <td><img src="task1_images/joint3.png" alt="Joint 3" width="320"/></td>
-    <td><img src="task1_images/joint4_overshoot.png" alt="Joint 4 Overshoot" width="320"/></td>
+    <td><img src="task1_images/joint3.png" alt="Joint 3" width="320"/><br/><em>Figure 14: Joint 3 tuned response</em></td>
+    <td><img src="task1_images/joint4_overshoot.png" alt="Joint 4 Overshoot" width="320"/><br/><em>Figure 15: Joint 4 overshoot with Ki=190</em></td>
   </tr>
   <tr>
-    <td><img src="task1_images/joint4_fix.png" alt="Joint 4 Fix" width="320"/></td>
-    <td><img src="task1_images/joint6.png" alt="Joint 6" width="320"/></td>
+    <td><img src="task1_images/joint4_fix.png" alt="Joint 4 Fix" width="320"/><br/><em>Figure 16: Joint 4 fixed with Ki reduced to 70</em></td>
+    <td><img src="task1_images/joint6.png" alt="Joint 6" width="320"/><br/><em>Figure 17: Joint 6 tuned response</em></td>
   </tr>
 </table>
 
@@ -156,27 +183,39 @@ By tuning each category 1 joint individually, each joint was tuned during a stat
 
 ![Category1_joints](task1_images/category1_joints.png)
 
+*Figure 18: All category 1 joints (2, 3, 4, 6) moving simultaneously, no overshoot*
+
 ## Category 2 Tuning (Joints 1 and 5)
 
 Applying my baseline gains of Kp = 220, Ki = 190, Kd = 50 to joint 1 predictively resulted in a graph that showed the joint reaching the target position at a slower rate (>4 sec). This makes sense because of the greater mass joint 1 is moving.
 
 ![Joint 1 Slow](task1_images/joint1_slow.png)
 
+*Figure 19: Joint 1 with baseline gains, slow to reach target (>4 sec)*
+
 Increasing the Ki to 300 improved the result by decreasing the amount of time it takes for joint 1 to reach the target position.
 
 ![Joint 1 Fixed](task1_images/joint1_fixed.png)
+
+*Figure 20: Joint 1 with Ki=300, faster convergence*
 
 Applying gains from joint 4 that took into account the decreased mass to joint 5 gave good results.
 
 ![Joint 5](task1_images/joint5.png)
 
+*Figure 21: Joint 5 tuned response*
+
 Testing both tuned category 2 joints at the same time (both target positions being -1.5708 rad) gave good, consistent results.
 
 ![Category 2](task1_images/category2.png)
 
+*Figure 22: Both category 2 joints (1 and 5) moving simultaneously, good results*
+
 Testing all 6 joints (target position = -1.5708 rad) gave unexpected results. There was overshoot in joints 1 and 2
 
 ![All 6 Joints Overshoot](task1_images/all_6_joints_overshoot.png)
+
+*Figure 23: All 6 joints moving simultaneously, unexpected overshoot in joints 1 and 2*
 
 In my earlier analysis, I wrongly predicted any arbitrary position outside of max load would not result in overshoot. I hypothesised any arbitrary position would be in a state of being overdamped relative to the max load position.
 
@@ -190,12 +229,22 @@ https://www.youtube.com/watch?v=wyALKpgSyls&t=54s
 M(q) describing the inertia matrix. C(q, q̇) describing the Coriolis/centripetal terms which only show up when the joints are moving at the same time. g(q) describes the gravity term. When tuning the joints individually C was equal to 0. When all 6 joints moved simultaneously, 2 things changed: the Coriolis/centripital term appears due to simultaneous movement and the moment of inertia changes. Compared to individual tuning conditions, the moment of inertia decreased (classic ice skater bringing in thier arms problem). Therefore, my Ki is too "aggressive" which led to the overshoot. Reducing the Ki values of joints 1 and 2 resulted in no overshoot
 
 ![All 6 Joints Fixed](task1_images/all_6_joints_fixed.png)
+
+*Figure 24: All 6 joints after reducing Ki for joints 1 and 2, overshoot resolved*
+
 ![Configuration 1](task1_images/configuration1.png)
+
+*Figure 25: Configuration 1 arm pose*
 
 I tested a new configuration to test these new gains. The results show no overshoot.
 
 ![All 6 Joints Fixed: Different positions](task1_images/all_6_joints_fixed2.png)
+
+*Figure 26: All 6 joints in configuration 2, no overshoot*
+
 ![Configuration 2](task1_images/configuration2.png)
+
+*Figure 27: Configuration 2 arm pose*
 
 ### Conclusion
 
