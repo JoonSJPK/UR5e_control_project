@@ -24,15 +24,23 @@ def main():
         j, kp, ki, kd, tgt = entry.split(":")
         joint_configs.append((int(j) - 1, float(kp), float(ki), float(kd), float(tgt)))
 
+    #scene configuration
     model = mujoco.MjModel.from_xml_path(SCENE_XML)
     data = mujoco.MjData(model)
     dt = model.opt.timestep
 
-    controllers = {idx: PIDController(Kp=kp, Ki=ki, Kd=kd) for idx, kp, ki, kd, _ in joint_configs}
-    targets = {idx: tgt for idx, *_, tgt in joint_configs}
+    #controller objects
+    controllers = {}
+    targets = {}
+    for idx, kp, ki, kd, tgt in joint_configs:
+        controllers[idx] = PIDController(Kp=kp, Ki=ki, Kd=kd)
+        targets[idx] = tgt
 
+    #variable setup
     steps_total = int(10 / dt)
-    collect = {idx: [] for idx, *_ in joint_configs}
+    collect = {}
+    for idx, *_ in joint_configs:
+        collect[idx] = []
     count = 0
     prev_time = 0.0
     plot_saved = False
@@ -50,14 +58,17 @@ def main():
                 plot_saved = False
             prev_time = data.time
 
+            #apply torque to each joint
             for idx, controller in controllers.items():
                 data.qfrc_applied[idx] = controller.compute(
                     dt, targets[idx], data.qpos[idx], data.qvel[idx]
                 )
-
+            
+            #update simulation
             mujoco.mj_step(model, data)
             viewer.sync()
 
+            #collect data
             if count < steps_total:
                 for idx in collect:
                     collect[idx].append(float(data.qpos[idx]))

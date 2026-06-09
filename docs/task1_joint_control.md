@@ -171,3 +171,19 @@ problem I had. Resetting the simulation gave different results
 
 
   Joint 2 (The Shoulder) is a fight against Gravity: Because Joint 2 moves up and down, it is constantly lifting the dead weight of the arm. When it is flat, gravity has maximum leverage against it.Tuning Impact: It requires a massive Proportional gain ($K_p$) and a strong Integral gain ($K_i$) just to counteract gravity and hold its position. Without a high $K_i$, it will stall out or sag before reaching the target.Joint 1 (The Base) is a fight against Inertia: Because Joint 1 rotates left and right parallel to the ground, gravity doesn't pull it down. It doesn't need to struggle to stay in place once it stops.Tuning Impact: It needs very little to no Integral gain ($K_i$). Instead, the main challenge is starting and stopping the swinging mass.
+
+
+
+## Links
+
+https://www.youtube.com/watch?v=HYVPysAGp6g&t=325s  
+https://www.youtube.com/watch?v=P83tKA1iz2Y&t=4s
+https://www.youtube.com/watch?v=qj8vTO1eIHo&list=WL&index=2
+https://www.youtube.com/watch?v=uXnDwojRb1g&list=WL&index=3
+https://youtu.be/gpQDZ5CNY5w?si=Aa5Wt4vvjfdDK_0r
+https://youtu.be/6Ji4vuJg2dw?si=dgxjJufpGfe7cc4X
+https://youtu.be/YYxkS1iFdVk?si=a6eL5xT4WUgtfsc_
+https://youtu.be/PRFCBVTFy90?si=L7evkppVRTE_NFfT
+https://youtu.be/yRDAThIxoOg?si=5HWkS9ue_LV8GKEL
+https://youtu.be/qC7hrYJVvD8?si=Nffi90eSMxpAK3Yj
+https://youtu.be/6EcxGh1fyMw?si=tMLRfKGMMI3snw3v
