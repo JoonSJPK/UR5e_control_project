@@ -39,15 +39,16 @@ class PIDController:
           self.Kd = 0.0
     
     self.integral = 0.0
-    self.t1 = 1
-    self.t2 = 3
-    self.t3 = 4
-    
+    self.t1 = 2
+    self.t2 = 6
+    self.t3 = 8
+
     self.target = target
     self.init = init
-    self.a = (target - init) / 3
-    self.b = self.a
-    self.c = self.a * self.t3
+
+    # Peak velocity: integral of the trapezoid must equal total displacement
+    total_area = self.t1 / 2 + (self.t2 - self.t1) + (self.t3 - self.t2) / 2
+    self.v_peak = (target - init) / total_area
 
   def reset(self):
     self.integral = 0.0
@@ -61,29 +62,29 @@ class PIDController:
 
   def compute_tgt_vel(self, t):
       if t >= 0 and t < self.t1:
-          return self.a * t
+          return self.v_peak * t / self.t1
       elif t >= self.t1 and t < self.t2:
-          return self.a
+          return self.v_peak
       elif t >= self.t2 and t < self.t3:
-          return self.a * (self.t3 - t)
+          return self.v_peak * (self.t3 - t) / (self.t3 - self.t2)
       else:
           return 0.0
-  
+
   def compute_tgt_pos(self, t, curr_pos):
-      if( t >= 0 and t < self.t1 ):
-        tgt_pos = ((self.a * t * t) / 2) + self.init
+      accel = self.v_peak / self.t1
+      decel = self.v_peak / (self.t3 - self.t2)
+      pos_at_t1 = self.init + accel * self.t1 ** 2 / 2
 
-        return tgt_pos
+      if t >= 0 and t < self.t1:
+          return self.init + accel * t ** 2 / 2
 
-      elif( t >= self.t1 and t < self.t2 ):
-        tgt_pos = (self.b * t) + ((self.a * self.t1 * self.t1) / 2) + (self.init) - (self.b * self.t1)
+      elif t >= self.t1 and t < self.t2:
+          return pos_at_t1 + self.v_peak * (t - self.t1)
 
-        return tgt_pos
+      elif t >= self.t2 and t < self.t3:
+          pos_at_t2 = pos_at_t1 + self.v_peak * (self.t2 - self.t1)
+          dt = t - self.t2
+          return pos_at_t2 + self.v_peak * dt - decel * dt ** 2 / 2
 
-      elif( t >= self.t2 and t < self.t3 ):
-        tgt_pos = -((self.a * t * t) / 2) + (self.c * t) + (self.b * self.t2) + ((self.a * self.t1 * self.t1) / 2) + (self.init) - (self.b * self.t1) + ((self.a * self.t2 * self.t2) / 2) - (self.c * self.t2)
-
-        return tgt_pos
-      
       #else:
          #return curr_pos

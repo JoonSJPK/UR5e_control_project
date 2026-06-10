@@ -60,6 +60,7 @@ def main():
 
             #apply torque to each joint
             for idx, controller in controllers.items():
+                data.ctrl[idx] = data.qpos[idx] 
                 data.qfrc_applied[idx] = controller.compute(
                     dt, targets[idx], data.qpos[idx], data.qvel[idx]
                 )

@@ -32,14 +32,17 @@ def main():
   #variable setup
   steps_total = int(10 / dt)
   collect = {idx: [] for idx in range(6)}
+  collect_tgt_vel = []
+  collect_tgt_pos = []
+  collect_pos = []
   count = 0
   plot_saved = False
 
   with mujoco.viewer.launch_passive(model, data) as viewer:
         while viewer.is_running():
-            
+
             # Detect viewer reset — data.time jumps back to 0
-            if data.time < prev_time or data.time == trans_time:
+            if data.time < prev_time:
                 for controller in controllers:
                     controller.reset()
             prev_time = data.time
@@ -60,10 +63,11 @@ def main():
 
             if( data.time >= 0.0 and data.time < trans_time ):
                 for idx, controller in enumerate(controllers):
+                    data.ctrl[idx] = data.qpos[idx]
                     data.qfrc_applied[idx] = controllers[idx].compute(
                         dt, init[idx], data.qpos[idx], data.qvel[idx]
                     )
-            elif( data.time >= trans_time and data.time <= trans_time + 4):
+            elif( data.time >= trans_time and data.time <= trans_time + 8):
                 trans_tgt = []
                 for idx, controller in enumerate(controllers):
                     curr_time = data.time - trans_time
@@ -71,6 +75,7 @@ def main():
 
                 for idx, controller in enumerate(controllers):
                     tgt_vel = controllers[idx].compute_tgt_vel(curr_time)
+                    data.ctrl[idx] = data.qpos[idx]  # neutralize built-in spring actuator
                     data.qfrc_applied[idx] = controller.compute(
                         dt, trans_tgt[idx], data.qpos[idx], data.qvel[idx], tgt_vel
                     )
@@ -78,9 +83,13 @@ def main():
                 if count < steps_total:
                     for idx in collect:
                         collect[idx].append(float(data.qvel[idx]))
+                    collect_tgt_vel.append(controllers[4].compute_tgt_vel(curr_time))
+                    collect_tgt_pos.append(trans_tgt[4])
+                    collect_pos.append(float(data.qpos[4]))
                     count += 1
             else:
                 for idx, controller in enumerate(controllers):
+                    data.ctrl[idx] = data.qpos[idx]
                     data.qfrc_applied[idx] = controllers[idx].compute(
                         dt, target[idx], data.qpos[idx], data.qvel[idx]
                     )
@@ -88,6 +97,9 @@ def main():
                 if count < steps_total:
                     for idx in collect:
                         collect[idx].append(float(data.qvel[idx]))
+                    collect_tgt_vel.append(0.0)
+                    collect_tgt_pos.append(float(target[4]))
+                    collect_pos.append(float(data.qpos[4]))
                     count += 1
 
             
@@ -101,12 +113,21 @@ def main():
 
             if count == steps_total and not plot_saved:
                 times = [i * dt for i in range(len(collect[4]))]
-                fig, ax = plt.subplots()
-                ax.plot(times, collect[4])
-                ax.set_xlabel("Time (s)")
-                ax.set_ylabel("Velocity (rad/s)")
-                ax.set_title("Joint 4 Velocity")
-                out_path = os.path.join(os.path.dirname(__file__), "vel5_graph.png")
+                fig, axes = plt.subplots(2, 1, figsize=(10, 8))
+                axes[0].plot(times, collect[4], label="actual vel")
+                axes[0].plot(times[:len(collect_tgt_vel)], collect_tgt_vel, label="target vel", linestyle="--")
+                axes[0].set_xlabel("Time (s)")
+                axes[0].set_ylabel("Velocity (rad/s)")
+                axes[0].set_title("Joint 4 Velocity")
+                axes[0].legend()
+                axes[1].plot(times[:len(collect_pos)], collect_pos, label="actual pos")
+                axes[1].plot(times[:len(collect_tgt_pos)], collect_tgt_pos, label="target pos", linestyle="--")
+                axes[1].set_xlabel("Time (s)")
+                axes[1].set_ylabel("Position (rad)")
+                axes[1].set_title("Joint 4 Position")
+                axes[1].legend()
+                plt.tight_layout()
+                out_path = os.path.join(os.path.dirname(__file__), "vel_ctrl_graph.png")
                 fig.savefig(out_path)
                 plt.close(fig)
                 print(f"Plot saved to {out_path}")
