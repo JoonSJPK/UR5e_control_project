@@ -66,7 +66,7 @@ def main():
                     data.ctrl[idx] = data.qpos[idx]
                     data.qfrc_applied[idx] = controllers[idx].compute(
                         dt, init[idx], data.qpos[idx], data.qvel[idx]
-                    )
+                    ) + data.qfrc_bias[idx]
             elif( data.time >= trans_time and data.time <= trans_time + 8):
                 trans_tgt = []
                 for idx, controller in enumerate(controllers):
@@ -78,7 +78,7 @@ def main():
                     data.ctrl[idx] = data.qpos[idx]  # neutralize built-in spring actuator
                     data.qfrc_applied[idx] = controller.compute(
                         dt, trans_tgt[idx], data.qpos[idx], data.qvel[idx], tgt_vel
-                    )
+                    ) + data.qfrc_bias[idx]
                 #collect data
                 if count < steps_total:
                     for idx in collect:
@@ -92,7 +92,7 @@ def main():
                     data.ctrl[idx] = data.qpos[idx]
                     data.qfrc_applied[idx] = controllers[idx].compute(
                         dt, target[idx], data.qpos[idx], data.qvel[idx]
-                    )
+                    ) + data.qfrc_bias[idx]
                 #collect data
                 if count < steps_total:
                     for idx in collect:
@@ -127,7 +127,7 @@ def main():
                 axes[1].set_title("Joint 4 Position")
                 axes[1].legend()
                 plt.tight_layout()
-                out_path = os.path.join(os.path.dirname(__file__), "vel_ctrl_graph.png")
+                out_path = os.path.join(os.path.dirname(__file__), "vel_final_graph.png")
                 fig.savefig(out_path)
                 plt.close(fig)
                 print(f"Plot saved to {out_path}")

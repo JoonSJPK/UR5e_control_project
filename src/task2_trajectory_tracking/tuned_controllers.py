@@ -11,32 +11,39 @@ class PIDController:
     match joint:
       case 0:
           self.Kp = 220.0
-          self.Ki = 280.0
+          self.Ki = 0.0
           self.Kd = 50.0
+          self.Kv = 50.0
       case 1:
           self.Kp = 220.0
-          self.Ki = 180.0
+          self.Ki = 0.0
           self.Kd = 50.0
+          self.Kv = 50.0
       case 2:
           self.Kp = 220.0
-          self.Ki = 210.0
+          self.Ki = 0.0
           self.Kd = 50.0
+          self.Kv = 50.0
       case 3:
           self.Kp = 220.0
-          self.Ki = 70.0
+          self.Ki = 0.0
           self.Kd = 50.0
+          self.Kv = 50.0
       case 4:
           self.Kp = 220.0
-          self.Ki = 70.0
+          self.Ki = 0.0
           self.Kd = 50.0
+          self.Kv = 50.0
       case 5:
           self.Kp = 220.0
-          self.Ki = 70.0
+          self.Ki = 0.0
           self.Kd = 50.0
+          self.Kv = 50.0
       case _:
           self.Kp = 0.0
           self.Ki = 0.0
           self.Kd = 0.0
+          self.Kv = 0.0
     
     self.integral = 0.0
     self.t1 = 2
@@ -54,9 +61,9 @@ class PIDController:
     self.integral = 0.0
 
   def compute(self, dt, target_qpos, curr_qpos, curr_qvel, target_qvel=0.0):
-    error = target_qpos - curr_qpos
-    self.integral += error * dt
-    torques = (self.Kp * error) + (self.Ki * self.integral) + (self.Kd * (target_qvel - curr_qvel))
+    pos_error = target_qpos - curr_qpos
+    self.integral += pos_error * dt
+    torques = (self.Kp * pos_error) + (self.Ki * self.integral) - (self.Kd * curr_qvel) + (self.Kv * target_qvel)
 
     return torques
 

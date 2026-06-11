@@ -63,7 +63,7 @@ def main():
                 data.ctrl[idx] = data.qpos[idx] 
                 data.qfrc_applied[idx] = controller.compute(
                     dt, targets[idx], data.qpos[idx], data.qvel[idx]
-                )
+                ) + data.qfrc_bias[idx]
             
             #update simulation
             mujoco.mj_step(model, data)
