@@ -64,17 +64,17 @@ def main():
             if( data.time >= 0.0 and data.time < trans_time ):
                 for idx, controller in enumerate(controllers):
                     data.ctrl[idx] = data.qpos[idx]
-                    data.qfrc_applied[idx] = controllers[idx].compute(
+                    data.qfrc_applied[idx] = controller.compute(
                         dt, init[idx], data.qpos[idx], data.qvel[idx]
                     ) + data.qfrc_bias[idx]
             elif( data.time >= trans_time and data.time <= trans_time + 8):
                 trans_tgt = []
                 for idx, controller in enumerate(controllers):
                     curr_time = data.time - trans_time
-                    trans_tgt.append(controllers[idx].compute_tgt_pos(curr_time, data.qpos[idx]))
+                    trans_tgt.append(controller.compute_tgt_pos(curr_time, data.qpos[idx]))
 
                 for idx, controller in enumerate(controllers):
-                    tgt_vel = controllers[idx].compute_tgt_vel(curr_time)
+                    tgt_vel = controller.compute_tgt_vel(curr_time)
                     data.ctrl[idx] = data.qpos[idx]  # neutralize built-in spring actuator
                     data.qfrc_applied[idx] = controller.compute(
                         dt, trans_tgt[idx], data.qpos[idx], data.qvel[idx], tgt_vel
