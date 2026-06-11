@@ -1,4 +1,5 @@
 import os
+from datetime import datetime
 
 import matplotlib
 matplotlib.use('Agg')
@@ -16,7 +17,8 @@ def main():
   dt = model.opt.timestep
 
   init  = [-1.5708, -1.5708, -1.5708, -1.5708, -1.5708, -1.5708]
-  target = [1.5708, -1.5708, 1.5708, 1.5708, 1.5708, 1.5708]
+  target = [1.5708, -3.1416, 1.5708, -3.1416, 1.5708, -3.1416]
+
 
   controllers = []
   for idx in range(6):
@@ -31,10 +33,10 @@ def main():
 
   #variable setup
   steps_total = int(10 / dt)
-  collect = {idx: [] for idx in range(6)}
-  collect_tgt_vel = []
-  collect_tgt_pos = []
-  collect_pos = []
+  collect_vel = {idx: [] for idx in range(6)}
+  collect_pos = {idx: [] for idx in range(6)}
+  collect_tgt_vel = {idx: [] for idx in range(6)}
+  collect_tgt_pos = {idx: [] for idx in range(6)}
   count = 0
   plot_saved = False
 
@@ -81,11 +83,11 @@ def main():
                     ) + data.qfrc_bias[idx]
                 #collect data
                 if count < steps_total:
-                    for idx in collect:
-                        collect[idx].append(float(data.qvel[idx]))
-                    collect_tgt_vel.append(controllers[4].compute_tgt_vel(curr_time))
-                    collect_tgt_pos.append(trans_tgt[4])
-                    collect_pos.append(float(data.qpos[4]))
+                    for idx in range(6):
+                        collect_vel[idx].append(float(data.qvel[idx]))
+                        collect_pos[idx].append(float(data.qpos[idx]))
+                        collect_tgt_vel[idx].append(controllers[idx].compute_tgt_vel(curr_time))
+                        collect_tgt_pos[idx].append(trans_tgt[idx])
                     count += 1
             else:
                 for idx, controller in enumerate(controllers):
@@ -95,11 +97,11 @@ def main():
                     ) + data.qfrc_bias[idx]
                 #collect data
                 if count < steps_total:
-                    for idx in collect:
-                        collect[idx].append(float(data.qvel[idx]))
-                    collect_tgt_vel.append(0.0)
-                    collect_tgt_pos.append(float(target[4]))
-                    collect_pos.append(float(data.qpos[4]))
+                    for idx in range(6):
+                        collect_vel[idx].append(float(data.qvel[idx]))
+                        collect_pos[idx].append(float(data.qpos[idx]))
+                        collect_tgt_vel[idx].append(0.0)
+                        collect_tgt_pos[idx].append(float(target[idx]))
                     count += 1
 
             
@@ -112,22 +114,23 @@ def main():
 
 
             if count == steps_total and not plot_saved:
-                times = [i * dt for i in range(len(collect[4]))]
-                fig, axes = plt.subplots(2, 1, figsize=(10, 8))
-                axes[0].plot(times, collect[4], label="actual vel")
-                axes[0].plot(times[:len(collect_tgt_vel)], collect_tgt_vel, label="target vel", linestyle="--")
-                axes[0].set_xlabel("Time (s)")
-                axes[0].set_ylabel("Velocity (rad/s)")
-                axes[0].set_title("Joint 4 Velocity")
-                axes[0].legend()
-                axes[1].plot(times[:len(collect_pos)], collect_pos, label="actual pos")
-                axes[1].plot(times[:len(collect_tgt_pos)], collect_tgt_pos, label="target pos", linestyle="--")
-                axes[1].set_xlabel("Time (s)")
-                axes[1].set_ylabel("Position (rad)")
-                axes[1].set_title("Joint 4 Position")
-                axes[1].legend()
+                times = [i * dt for i in range(count)]
+                fig, axes = plt.subplots(6, 2, figsize=(14, 18))
+                for idx in range(6):
+                    axes[idx, 0].plot(times[:len(collect_pos[idx])], collect_pos[idx], label="actual pos")
+                    axes[idx, 0].plot(times[:len(collect_tgt_pos[idx])], collect_tgt_pos[idx], label="target pos", linestyle="--")
+                    axes[idx, 0].set_ylabel("Position (rad)")
+                    axes[idx, 0].set_title(f"Joint {idx + 1} Position")
+                    axes[idx, 0].legend()
+                    axes[idx, 1].plot(times[:len(collect_vel[idx])], collect_vel[idx], label="actual vel")
+                    axes[idx, 1].plot(times[:len(collect_tgt_vel[idx])], collect_tgt_vel[idx], label="target vel", linestyle="--")
+                    axes[idx, 1].set_ylabel("Velocity (rad/s)")
+                    axes[idx, 1].set_title(f"Joint {idx + 1} Velocity")
+                    axes[idx, 1].legend()
+                for ax in axes[-1]:
+                    ax.set_xlabel("Time (s)")
                 plt.tight_layout()
-                out_path = os.path.join(os.path.dirname(__file__), "vel_final_graph.png")
+                out_path = os.path.join(os.path.dirname(__file__), f"vel_6_joints_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png")
                 fig.savefig(out_path)
                 plt.close(fig)
                 print(f"Plot saved to {out_path}")
