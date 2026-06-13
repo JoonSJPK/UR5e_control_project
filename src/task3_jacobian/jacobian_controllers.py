@@ -1,9 +1,8 @@
 import numpy as np
 
 class PIDController:
-
+  
   def __init__(self, joint, theta):
-
     match joint:
 
       case 0:
@@ -93,7 +92,6 @@ class PIDController:
     return elem_step
   
   def fk_trans_matrix(elem):
-
     trans_matrix = np.array([[1,0,0,0],
                              [0,1,0,0],
                              [0,0,1,0],
