@@ -42,21 +42,21 @@ $$T_{i-1}^{\,i} = \text{Rot}_z(\theta)\;\text{Trans}_z(d)\;\text{Trans}_x(a)\;\t
 
 The four matrices are:
 
-- **Rotₓ z(θ)**: rotation about z by the joint angle
+**Rotₓ z(θ)** — rotation about z by the joint angle:
 
-  $$\text{Rot}_z(\theta)=\begin{bmatrix} C\theta & -S\theta & 0 & 0\\ S\theta & C\theta & 0 & 0\\ 0 & 0 & 1 & 0\\ 0 & 0 & 0 & 1 \end{bmatrix}$$
+$$\text{Rot}_z(\theta)=\begin{bmatrix} C\theta & -S\theta & 0 & 0\\ S\theta & C\theta & 0 & 0\\ 0 & 0 & 1 & 0\\ 0 & 0 & 0 & 1 \end{bmatrix}$$
 
-- **Transz(d)**: translation along z by the link offset
+**Transz(d)** — translation along z by the link offset:
 
-  $$\text{Trans}_z(d)=\begin{bmatrix} 1 & 0 & 0 & 0\\ 0 & 1 & 0 & 0\\ 0 & 0 & 1 & d\\ 0 & 0 & 0 & 1 \end{bmatrix}$$
+$$\text{Trans}_z(d)=\begin{bmatrix} 1 & 0 & 0 & 0\\ 0 & 1 & 0 & 0\\ 0 & 0 & 1 & d\\ 0 & 0 & 0 & 1 \end{bmatrix}$$
 
-- **Transₓ(a)**: translation along x by the link length
+**Transₓ(a)** — translation along x by the link length:
 
-  $$\text{Trans}_x(a)=\begin{bmatrix} 1 & 0 & 0 & a\\ 0 & 1 & 0 & 0\\ 0 & 0 & 1 & 0\\ 0 & 0 & 0 & 1 \end{bmatrix}$$
+$$\text{Trans}_x(a)=\begin{bmatrix} 1 & 0 & 0 & a\\ 0 & 1 & 0 & 0\\ 0 & 0 & 1 & 0\\ 0 & 0 & 0 & 1 \end{bmatrix}$$
 
-- **Rotₓ(α)**: rotatation about x by the link twist
+**Rotₓ(α)** — rotatation about x by the link twist:
 
-  $$\text{Rot}_x(\alpha)=\begin{bmatrix} 1 & 0 & 0 & 0\\ 0 & C\alpha & -S\alpha & 0\\ 0 & S\alpha & C\alpha & 0\\ 0 & 0 & 0 & 1 \end{bmatrix}$$
+$$\text{Rot}_x(\alpha)=\begin{bmatrix} 1 & 0 & 0 & 0\\ 0 & C\alpha & -S\alpha & 0\\ 0 & S\alpha & C\alpha & 0\\ 0 & 0 & 0 & 1 \end{bmatrix}$$
 
 The combined result:
 
@@ -84,7 +84,7 @@ $$T_0^{\,6} = T_0^{\,1}\,T_1^{\,2}\,T_2^{\,3}\,T_3^{\,4}\,T_4^{\,5}\,T_5^{\,6}$$
 
 **Structure of the cumulative transform:**
 
-$$T_0^{\,i} = \left[\begin{array}{ccc|c} & & & \\ & R_0^{\,i} & & P_i \\ & & & \\ \hline 0 & 0 & 0 & 1 \end{array}\right]$$
+$$T_0^{\,i} = \left[\begin{array}{c|c} R_0^{\,i} & P_i \\\hline \mathbf{0}^\top & 1 \end{array}\right]$$
 
 - Column 1 → frame *i*'s x-axis
 - Column 2 → frame *i*'s y-axis
