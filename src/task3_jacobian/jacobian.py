@@ -37,7 +37,7 @@ def main():
           if (data.time > 4):
             while (e_mag > 0.001):
 
-              for _ in range(20):
+              for _ in range(10):
                 mujoco_move(dt, viewer, controllers, model, data, init_theta)
 
               elem_steps = []
@@ -81,8 +81,6 @@ def main():
               #print(delta_theta)
 
               init_theta = np.add(init_theta, delta_theta)
-
-
 
 
 
