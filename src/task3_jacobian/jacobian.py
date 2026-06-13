@@ -14,57 +14,73 @@ def main():
     data = mujoco.MjData(model)
     dt = model.opt.timestep
 
-    # initial joint position in rad
-    init_theta  = [0.3491, -1.7453, 1.3963, -1.5708, 1.2217, 0.5236]
+    # initial joint position in rad — standard UR5e ready pose
+    init_theta  = [-1.5708, -1.5708, 1.5708, -1.5708, -1.5708, 0]
+    controllers = []
+    for idx in range(6):
+      controllers.append(PIDController(joint = idx, theta = init_theta[idx]))
 
     # Cartesian target position
-    target = [0.40, 0.1, 0.5]
+    mujoco.mj_forward(model, data)
+    tgt_x = data.body("bottle_target").xpos[0]
+    tgt_y = data.body("bottle_target").xpos[1]
+    tgt_z = data.body("bottle_target").xpos[2] + 0.1
+    #target = [tgt_x, tgt_y, tgt_z]
+    target = [tgt_x, tgt_y, 0.3]
     e_mag = 100
-    while (e_mag > 0.001):
-      controllers = []
-      for idx in range(6):
-        controllers.append(PIDController(joint = idx, theta = init_theta[idx]))
 
-      elem_steps = []
-      for idx in range(6):
-        elem_steps.append(controllers[idx].fk_elem_step())
+    with mujoco.viewer.launch_passive(model, data) as viewer:
+        while viewer.is_running():
 
+          mujoco_move(dt, viewer, controllers, model, data, init_theta)
 
+          if (data.time > 4):
+            while (e_mag > 0.001):
 
-      trans_cum_matrix, trans_matrix, z, p = fk_trans_matrix(elem_steps)
-      #print(trans_cum_matrix)
-      #print(trans_matrix)
-      #print(p)
-      #print(z)
+              for _ in range(20):
+                mujoco_move(dt, viewer, controllers, model, data, init_theta)
 
-      e = calc_error(target, trans_cum_matrix)
-      e_mag = calc_e_mag(e)
-      print(e_mag)
-      #print(e)
+              elem_steps = []
+              for idx in range(6):
+                controllers[idx].theta = data.qpos[idx]
+                elem_steps.append(controllers[idx].fk_elem_step())
 
 
-      pe = p[-1]
-      jv_transpose = []
-      for idx in range(6):
-        jv_transpose.append(calc_jv_column(z[idx], pe - p[idx]))
-      #print(jv_transpose)
 
-      jv = np.array(jv_transpose).T
-      #print(jv)
+              trans_cum_matrix, trans_matrix, z, p = fk_trans_matrix(elem_steps)
+              #print(trans_cum_matrix)
+              #print(trans_matrix)
+              #print(p)
+              #print(z)
 
-      step_size = 0.01
-      delta_p = [step_size * e[0], step_size * e[1], step_size * e[2]]
-      identity = np.array([[1,0,0],
-                           [0,1,0],
-                           [0,0,1]])
-      lambda_squared = 0.0025 * 0.0025
-      #print(delta_p)
+              e = calc_error(target, trans_cum_matrix)
+              e_mag = calc_e_mag(e)
+              print(e_mag)
+              #print(e)
 
-      delta_theta = (jv_transpose @ np.linalg.inv((jv @ jv_transpose) + (lambda_squared * identity))) @ delta_p
 
-      #print(delta_theta)
+              pe = p[-1]
+              jv_transpose = []
+              for idx in range(6):
+                jv_transpose.append(calc_jv_column(z[idx], pe - p[idx]))
+              #print(jv_transpose)
 
-      init_theta = np.add(init_theta, delta_theta)
+              jv = np.array(jv_transpose).T
+              #print(jv)
+
+              step_size = 0.01
+              delta_p = [step_size * e[0], step_size * e[1], step_size * e[2]]
+              identity = np.array([[1,0,0],
+                                  [0,1,0],
+                                  [0,0,1]])
+              lambda_squared = 0.0025 * 0.0025
+              #print(delta_p)
+
+              delta_theta = (jv_transpose @ np.linalg.inv((jv @ jv_transpose) + (lambda_squared * identity))) @ delta_p
+
+              #print(delta_theta)
+
+              init_theta = np.add(init_theta, delta_theta)
 
 
 
@@ -134,6 +150,18 @@ def calc_e_mag(e):
    e_mag = math.sqrt((e[0] * e[0] + e[1] * e[1] + e[2] * e[2]))
 
    return e_mag
+
+def mujoco_move(dt, viewer, controllers, model, data, init_theta):
+  for idx, controller in enumerate(controllers):
+    data.ctrl[idx] = data.qpos[idx]
+    data.qfrc_applied[idx] = controller.compute(
+        dt, init_theta[idx], data.qpos[idx], data.qvel[idx]
+    ) + data.qfrc_bias[idx]
+
+
+  #update simulation
+  mujoco.mj_step(model, data)
+  viewer.sync()
 
     
 
