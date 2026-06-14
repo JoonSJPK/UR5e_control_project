@@ -252,6 +252,10 @@ A PID controller was successfully implemented and tuned for each joint of the UR
 
 ---
 
+## **Update (06/13/2026)
+
+
+
 
 
 

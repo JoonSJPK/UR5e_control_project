@@ -63,7 +63,7 @@ def main():
               identity = np.array([[1,0,0],
                                   [0,1,0],
                                   [0,0,1]])
-              lambda_squared = 0.0025 * 0.0025
+              lambda_squared = 0.0025 ** 2
 
               delta_theta = (jv_transpose @ np.linalg.inv((jv @ jv_transpose) + (lambda_squared * identity))) @ delta_p
 

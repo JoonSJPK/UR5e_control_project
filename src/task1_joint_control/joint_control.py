@@ -44,8 +44,11 @@ def main():
     count = 0
     prev_time = 0.0
     plot_saved = False
+    hold_kp = 1000.0
 
     with mujoco.viewer.launch_passive(model, data) as viewer:
+        initial_qpos = data.qpos.copy()
+
         while viewer.is_running():
 
             # Detect viewer reset (Backspace) — data.time jumps back to 0
@@ -56,11 +59,13 @@ def main():
                     collect[key].clear()
                 count = 0
                 plot_saved = False
+                initial_qpos = data.qpos.copy()
             prev_time = data.time
 
-            #apply torque to each joint
+            # for testing purposes: hold all joints at initial position with a mini p controller
+            for idx in range(model.nv):
+                data.qfrc_applied[idx] = data.qfrc_bias[idx] - hold_kp * (data.qpos[idx] - initial_qpos[idx])
             for idx, controller in controllers.items():
-                data.ctrl[idx] = data.qpos[idx] 
                 data.qfrc_applied[idx] = controller.compute(
                     dt, targets[idx], data.qpos[idx], data.qvel[idx]
                 ) + data.qfrc_bias[idx]
