@@ -92,3 +92,5 @@ $$T_0^{\,i} = \left[\begin{array}{c|c} R_0^{\,i} & P_i \\\hline \mathbf{0}^\top 
 - Column 4 → the origin $p_i$
 
 The top right column shows pe, it is the end effector position in Cartesian coordinates measured in meters. The top left 3x3 matrix Re describes the eneffectors orientation.
+
+![Task 3 Demo](task3_images/task3_demo.gif)

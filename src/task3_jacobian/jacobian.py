@@ -45,8 +45,6 @@ def main():
                 controllers[idx].theta = data.qpos[idx]
                 elem_steps.append(controllers[idx].fk_elem_step())
 
-
-
               trans_cum_matrix, trans_matrix, z, p = fk_trans_matrix(elem_steps)
 
               e = calc_error(target, trans_cum_matrix)
@@ -70,10 +68,6 @@ def main():
               delta_theta = (jv_transpose @ np.linalg.inv((jv @ jv_transpose) + (lambda_squared * identity))) @ delta_p
 
               init_theta = np.add(init_theta, delta_theta)
-
-
-
-
 
 def fk_trans_matrix(elem):
   trans_cum_matrix = np.array([[1,0,0,0],
