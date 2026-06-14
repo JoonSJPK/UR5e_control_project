@@ -93,4 +93,18 @@ $$T_0^{\,i} = \left[\begin{array}{c|c} R_0^{\,i} & P_i \\\hline \mathbf{0}^\top 
 
 The top right column shows pe, it is the end effector position in Cartesian coordinates measured in meters. The top left 3x3 matrix Re describes the eneffectors orientation.
 
+## Step 2 (Error)
+
+With the position vector of the end effector, pe, we are able to find the error between the target position and the current postion
+
+e = ptarget - pe
+
+Also, the magnitude of the error vector can be found at this step
+
+||e|| = sqrt(ex^2 + ey^2 + ez^2)
+
+## Step 3 (Jacobian)
+
+### What is the Resolved Rate (Jacobian) Method?
+
 ![Task 3 Demo](task3_images/task3_demo.gif)
