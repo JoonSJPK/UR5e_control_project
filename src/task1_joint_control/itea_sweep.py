@@ -76,7 +76,7 @@ def run_grid(joint_idx, kp_values, kd_values):
     return grid
 
 
-def sweep(out_path=None):
+def sweep(out_path=None, progress_cb=None):
     if out_path is None:
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         out_path  = f"itae_heatmap_{timestamp}.png"
@@ -84,9 +84,14 @@ def sweep(out_path=None):
     fig, axes = plt.subplots(2, 3, figsize=(15, 9))
     axes = axes.flatten()
 
+    best_gains = []
+
     for joint_idx in range(n_joints):
         kp_lo, kp_hi = KP_RANGES[joint_idx]
         kd_lo, kd_hi = KD_RANGES[joint_idx]
+
+        if progress_cb:
+            progress_cb(f"Sweeping joint {joint_idx+1}/6 (coarse)…")
 
         # pass 1 big
         kp_big = np.arange(kp_lo, kp_hi + 1, BIG_STEP)
@@ -96,6 +101,9 @@ def sweep(out_path=None):
         best_kp_big = kp_big[best_j]
         best_kd_big = kd_big[best_w]
         print(f"Joint {joint_idx+1} big best: Kp={best_kp_big} Kd={best_kd_big}")
+
+        if progress_cb:
+            progress_cb(f"Sweeping joint {joint_idx+1}/6 (fine)…")
 
         # pass 2 small
         kp_small = np.arange(max(kp_lo, best_kp_big - SMALL_WINDOW),
@@ -107,6 +115,8 @@ def sweep(out_path=None):
         best_kp = kp_small[best_j]
         best_kd = kd_small[best_w]
         print(f"Joint {joint_idx+1}   small best: Kp={best_kp} Kd={best_kd}")
+
+        best_gains.append((int(best_kp), int(best_kd)))
 
         ax = axes[joint_idx]
         im = ax.imshow(grid_small, aspect='auto', origin='lower', cmap='viridis_r')
@@ -128,6 +138,7 @@ def sweep(out_path=None):
     plt.savefig(out_path)
     plt.close(fig)
     print(f"Saved {out_path}")
+    return best_gains
 
 
 if __name__ == "__main__":

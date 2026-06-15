@@ -14,6 +14,8 @@ import matplotlib.image as mpimg
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
+from .itea_sweep import sweep as itea_sweep
+
 MAIN_PY = "task1_joint_control.joint_control"
 PLOT_TMP = os.path.join(os.path.dirname(__file__), "_gui_tmp_plot.png")
 DATA_TMP = os.path.join(os.path.dirname(__file__), "_gui_tmp_data.csv")
@@ -83,6 +85,9 @@ class PIDTunerApp:
 
         self.run_btn = ttk.Button(btn_frame, text="Run", command=self._on_run)
         self.run_btn.pack(side="left", padx=8)
+
+        self.sweep_btn = ttk.Button(btn_frame, text="ITEA Sweep", command=self._on_sweep)
+        self.sweep_btn.pack(side="left", padx=8)
 
         ttk.Button(btn_frame, text="Export Gains", command=self._on_export_gains).pack(
             side="left", padx=8
@@ -182,6 +187,29 @@ class PIDTunerApp:
     def _on_error(self, msg):
         self.status_var.set(f"Error: {msg}")
         self.run_btn.configure(state="normal")
+
+    def _on_sweep(self):
+        self.sweep_btn.configure(state="disabled")
+        self.run_btn.configure(state="disabled")
+        self.status_var.set("ITEA sweep starting…")
+
+        def run():
+            def progress(msg):
+                self.root.after(0, lambda m=msg: self.status_var.set(m))
+
+            gains = itea_sweep(progress_cb=progress)
+
+            def apply():
+                for j, (kp, kd) in enumerate(gains, start=1):
+                    self.joint_rows[j]["kp"].set(float(kp))
+                    self.joint_rows[j]["kd"].set(float(kd))
+                self.sweep_btn.configure(state="normal")
+                self.run_btn.configure(state="normal")
+                self.status_var.set("Sweep done — gains loaded.")
+
+            self.root.after(0, apply)
+
+        threading.Thread(target=run, daemon=True).start()
 
     def _on_export_gains(self):
         path = filedialog.asksaveasfilename(

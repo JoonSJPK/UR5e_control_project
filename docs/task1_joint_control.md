@@ -99,13 +99,7 @@ https://ctms.engin.umich.edu/CTMS/index.php?example=Introduction&section=Control
 
 ## Tuning Gains Kp, Ki, Kd
 
-The first method I tried was the Ziegler–Nichols tuning method. This method first sets the I and D gains to zero. The P gain is then slowly increased from zero until it reaches a state where the output has stable steady state oscillations. The P gain associated with this state is called the ultimate gain, $K_u$. Next the oscillation period $T_u$ is found. Using $K_u$ and $T_u$, Kp, Ki, and Kd are set.
 
-![Ziegler–Nichols Method](task1_images/Ziegler–Nichols_method.png)
-
-*Figure 7: Ziegler–Nichols gain table*
-
-https://en.wikipedia.org/wiki/Ziegler%E2%80%93Nichols_method
 
 
 
