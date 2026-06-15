@@ -84,7 +84,7 @@ def main():
             #collect data
             if count < steps_total:
                 for idx in collect:
-                    collect[idx].append(float(data.qpos[idx]))
+                    collect[idx].append(float(targets[idx] - data.qpos[idx]))
                 count += 1
 
             if count == steps_total and not plot_saved:

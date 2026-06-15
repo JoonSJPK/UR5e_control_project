@@ -21,18 +21,14 @@ def save_plot(dt, collect, joint_configs, out_path):
     x_values = [i * dt for i in range(steps)]
 
     fig, ax = plt.subplots()
-    plotted_targets = set()
     for idx, kp, ki, kd, tgt in joint_configs:
         ax.plot(x_values, collect[idx], label=f"Joint {idx + 1}")
-        if tgt not in plotted_targets:
-            ax.axhline(y=tgt, color="r", linestyle="--",
-                       label=f"Target ({tgt:.4f})" if len(plotted_targets) == 0 else f"Target ({tgt:.4f})")
-            plotted_targets.add(tgt)
 
+    ax.axhline(y=0, color="r", linestyle="--", label="Zero error")
     ax.set_xlim(0, 10)
     ax.set_xlabel("Time (sec)")
-    ax.set_ylabel("Angle (rad)")
-    ax.set_title("Joint Tracking")
+    ax.set_ylabel("Error (rad)")
+    ax.set_title("Joint Tracking Error")
     ax.legend()
     plt.tight_layout()
     plt.savefig(out_path)
