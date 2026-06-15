@@ -130,6 +130,15 @@
     <motor name="wrist_3" joint="wrist_3_joint" gear="1" ctrlrange="-28 28"/>
   </actuator>
 
+  <equality>
+    <joint name="lock_shoulder_pan_joint"  joint1="shoulder_pan_joint"  polycoef="0 1 0 0 0" active="false"/>
+    <joint name="lock_shoulder_lift_joint" joint1="shoulder_lift_joint" polycoef="0 1 0 0 0" active="false"/>
+    <joint name="lock_elbow_joint"         joint1="elbow_joint"         polycoef="0 1 0 0 0" active="false"/>
+    <joint name="lock_wrist_1_joint"       joint1="wrist_1_joint"       polycoef="0 1 0 0 0" active="false"/>
+    <joint name="lock_wrist_2_joint"       joint1="wrist_2_joint"       polycoef="0 1 0 0 0" active="false"/>
+    <joint name="lock_wrist_3_joint"       joint1="wrist_3_joint"       polycoef="0 1 0 0 0" active="false"/>
+  </equality>
+
   <keyframe>
     <key name="home" qpos="-1.5708 -1.5708 1.5708 -1.5708 -1.5708 0" ctrl="0 0 0 0 0 0"/>
   </keyframe>

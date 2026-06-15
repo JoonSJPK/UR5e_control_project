@@ -29,6 +29,16 @@ def main():
     data = mujoco.MjData(model)
     dt = model.opt.timestep
 
+    # lock all non-tested joints
+    tested = []
+    for idx, *_ in joint_configs:
+        tested.append(idx)
+    for i in range(model.nv):
+        if i not in tested:
+            eq_id = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_EQUALITY, f"lock_{model.joint(i).name}")
+            model.eq_active0[eq_id] = 1
+            data.eq_active[eq_id] = 1
+
     #controller objects
     controllers = {}
     targets = {}
@@ -62,9 +72,6 @@ def main():
                 initial_qpos = data.qpos.copy()
             prev_time = data.time
 
-            # for testing purposes: hold all joints at initial position with a mini p controller
-            for idx in range(model.nv):
-                data.qfrc_applied[idx] = data.qfrc_bias[idx] - hold_kp * (data.qpos[idx] - initial_qpos[idx])
             for idx, controller in controllers.items():
                 data.qfrc_applied[idx] = controller.compute(
                     dt, targets[idx], data.qpos[idx], data.qvel[idx]
