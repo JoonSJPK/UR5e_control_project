@@ -6,11 +6,12 @@ import matplotlib.pyplot as plt
 
 class PIDController:
 
-  def __init__(self, Kp, Ki, Kd):
+  def __init__(self, Kp, Ki, Kd, integral_limit=50.0):
     self.Kp = Kp
     self.Ki = Ki
     self.Kd = Kd
     self.integral = 0.0
+    self.integral_limit = integral_limit
 
   def reset(self):
     self.integral = 0.0
@@ -18,6 +19,12 @@ class PIDController:
   def compute(self, dt, target_qpos, curr_qpos, curr_qvel):
     error = target_qpos - curr_qpos
     self.integral += error * dt
+
+    if self.integral > self.integral_limit:
+      self.integral = self.integral_limit
+    elif self.integral < -self.integral_limit:
+      self.integral = -self.integral_limit
+      
     torques = (self.Kp * error) + (self.Ki * self.integral) - (self.Kd * curr_qvel)
 
     return torques

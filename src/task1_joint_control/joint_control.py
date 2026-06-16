@@ -13,16 +13,20 @@ SCENE_XML = os.path.join(os.path.dirname(__file__), "..", "..", "models", "unive
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--joints", type=str, required=True,
-                        help="Comma-separated configs: joint:kp:ki:kd,...")
+                        help="Comma-separated configs: joint:kp:ki:kd:target[:integral_limit_nm],...")
     parser.add_argument("--out", type=str, default=None, help="Output plot path")
     parser.add_argument("--data-out", type=str, default=None, help="Output CSV data path")
     args = parser.parse_args()
 
-    # Parse "1:100:10:5:-1.5708,3:50:5:2:-1.5708" → list of (0-based idx, kp, ki, kd, target)
+    # Parse "1:100:10:5:-1.5708,3:50:5:2:-1.5708:80" → list of
+    # (0-based idx, kp, ki, kd, target, integral_limit_nm). integral_limit_nm
+    # is optional and defaults to no clamp for backward compatibility.
     joint_configs = []
     for entry in args.joints.split(","):
-        j, kp, ki, kd, tgt = entry.split(":")
-        joint_configs.append((int(j) - 1, float(kp), float(ki), float(kd), float(tgt)))
+        fields = entry.split(":")
+        j, kp, ki, kd, tgt = fields[:5]
+        limit_nm = float(fields[5]) if len(fields) > 5 else float("inf")
+        joint_configs.append((int(j) - 1, float(kp), float(ki), float(kd), float(tgt), limit_nm))
 
     #scene configuration
     model = mujoco.MjModel.from_xml_path(SCENE_XML)
@@ -42,8 +46,9 @@ def main():
     #controller objects
     controllers = {}
     targets = {}
-    for idx, kp, ki, kd, tgt in joint_configs:
-        controllers[idx] = PIDController(Kp=kp, Ki=ki, Kd=kd)
+    for idx, kp, ki, kd, tgt, limit_nm in joint_configs:
+        integral_limit = limit_nm / ki if ki else float("inf")
+        controllers[idx] = PIDController(Kp=kp, Ki=ki, Kd=kd, integral_limit=integral_limit)
         targets[idx] = tgt
 
     #variable setup
@@ -55,6 +60,8 @@ def main():
     prev_time = 0.0
     plot_saved = False
     hold_kp = 1000.0
+
+    max_torque = [0,0,0,0,0,0]
 
     with mujoco.viewer.launch_passive(model, data) as viewer:
         initial_qpos = data.qpos.copy()
@@ -70,12 +77,26 @@ def main():
                 count = 0
                 plot_saved = False
                 initial_qpos = data.qpos.copy()
+                max_torque = [0,0,0,0,0,0]
             prev_time = data.time
 
             for idx, controller in controllers.items():
-                data.qfrc_applied[idx] = controller.compute(
+                torque = controller.compute(
                     dt, targets[idx], data.qpos[idx], data.qvel[idx]
-                ) + data.qfrc_bias[idx]
+                )
+                if(abs(torque) > abs(max_torque[idx])):
+                    max_torque[idx] = torque
+
+                limit = model.actuator_ctrlrange[idx, 1]
+                if torque > limit:
+                    torque = limit
+                elif torque < -limit:
+                    torque = -limit
+
+                data.qfrc_applied[idx] = torque
+
+            if(data.time > 15 and data.time < 20):
+                print(max_torque)
             
             #update simulation
             mujoco.mj_step(model, data)

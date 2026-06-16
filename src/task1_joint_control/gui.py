@@ -15,6 +15,7 @@ import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
 from .itea_sweep import sweep as itea_sweep
+from .itea_sweep import sweep_ki_limit as itea_sweep_ki_limit
 
 MAIN_PY = "task1_joint_control.joint_control"
 PLOT_TMP = os.path.join(os.path.dirname(__file__), "_gui_tmp_plot.png")
@@ -37,12 +38,12 @@ class PIDTunerApp:
         left.grid(row=0, column=0, sticky="ns")
 
         # Header row
-        for col, text in enumerate(["Joint", "Kp", "Ki", "Kd", "Target (rad)", "Active"]):
+        for col, text in enumerate(["Joint", "Kp", "Ki", "Kd", "Target (rad)", "I-Limit (Nm)", "Active"]):
             ttk.Label(left, text=text, width=10, anchor="center",
                       font=("", 10, "bold")).grid(row=0, column=col, padx=4, pady=4)
 
         ttk.Separator(left, orient="horizontal").grid(
-            row=1, column=0, columnspan=6, sticky="ew", pady=2
+            row=1, column=0, columnspan=7, sticky="ew", pady=2
         )
 
         self.joint_rows = {}
@@ -56,6 +57,7 @@ class PIDTunerApp:
             ki_var = tk.DoubleVar(value=0.0)
             kd_var = tk.DoubleVar(value=0.0)
             target_var = tk.DoubleVar(value=-1.5708)
+            limit_var = tk.DoubleVar(value=100.0)
             active_var = tk.BooleanVar(value=False)
 
             ttk.Entry(left, textvariable=kp_var, width=10, justify="right").grid(
@@ -70,14 +72,20 @@ class PIDTunerApp:
             ttk.Entry(left, textvariable=target_var, width=10, justify="right").grid(
                 row=row, column=4, padx=4, pady=4
             )
-            ttk.Checkbutton(left, variable=active_var).grid(
+            ttk.Entry(left, textvariable=limit_var, width=10, justify="right").grid(
                 row=row, column=5, padx=4, pady=4
             )
+            ttk.Checkbutton(left, variable=active_var).grid(
+                row=row, column=6, padx=4, pady=4
+            )
 
-            self.joint_rows[j] = {"kp": kp_var, "ki": ki_var, "kd": kd_var, "target": target_var, "active": active_var}
+            self.joint_rows[j] = {
+                "kp": kp_var, "ki": ki_var, "kd": kd_var, "target": target_var,
+                "limit": limit_var, "active": active_var,
+            }
 
         ttk.Separator(left, orient="horizontal").grid(
-            row=8, column=0, columnspan=6, sticky="ew", pady=8
+            row=8, column=0, columnspan=7, sticky="ew", pady=8
         )
 
         btn_frame = ttk.Frame(left)
@@ -143,7 +151,10 @@ class PIDTunerApp:
         configs = []
         for j in active:
             r = self.joint_rows[j]
-            configs.append(f"{j}:{r['kp'].get()}:{r['ki'].get()}:{r['kd'].get()}:{r['target'].get()}")
+            configs.append(
+                f"{j}:{r['kp'].get()}:{r['ki'].get()}:{r['kd'].get()}:"
+                f"{r['target'].get()}:{r['limit'].get()}"
+            )
 
         cmd = [MJPYTHON, "-m", MAIN_PY, "--joints", ",".join(configs), "--out", PLOT_TMP, "--data-out", DATA_TMP]
         self._sim_proc = subprocess.Popen(cmd, cwd=os.path.join(os.path.dirname(__file__), ".."))
@@ -197,12 +208,16 @@ class PIDTunerApp:
             def progress(msg):
                 self.root.after(0, lambda m=msg: self.status_var.set(m))
 
-            gains = itea_sweep(progress_cb=progress)
+            kp_kd_gains = itea_sweep(progress_cb=progress)
+            ki_limit_gains = itea_sweep_ki_limit(kp_kd_gains, progress_cb=progress)
 
             def apply():
-                for j, (kp, kd) in enumerate(gains, start=1):
+                for j, (kp, kd) in enumerate(kp_kd_gains, start=1):
                     self.joint_rows[j]["kp"].set(float(kp))
                     self.joint_rows[j]["kd"].set(float(kd))
+                for j, (ki, limit_nm) in enumerate(ki_limit_gains, start=1):
+                    self.joint_rows[j]["ki"].set(float(ki))
+                    self.joint_rows[j]["limit"].set(float(limit_nm))
                 self.sweep_btn.configure(state="normal")
                 self.run_btn.configure(state="normal")
                 self.status_var.set("Sweep done — gains loaded.")

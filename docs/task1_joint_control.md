@@ -99,8 +99,31 @@ https://ctms.engin.umich.edu/CTMS/index.php?example=Introduction&section=Control
 
 ## Tuning Gains Kp, Ki, Kd
 
+Testing out the Ziegler-Nichols method and tuning the PID values empirically led to the same problem: there was not quantitative way of measuring if one set of gains was better than another. This led me to the problem of having a large set of gains that seemed to all show acceptable error results. This led me to use the ITAE technique.
 
+When a controller tries to guide a system to a target value, it rarely hits it instantly. The difference between where the system currently is and where it wants to be is called the error, shown as $e(t)$. An ideal controller minimizes this error as fast as possible without causing the system to overshoot or oscillate. The ITAE method is a a mathematical formula that scores how well a controller is doing.
 
+$$\text{ITAE} = \int_{0}^{\infty} t \cdot |e(t)| \, dt$$
+
+$t$: Time$|e(t)|$: The absolute value of the error at that specific moment.
+
+The t variable in the equation is a key factor when analyzing the effectiveness of chosen gains. When t is close to 0, the position of a joint is expectedly far from the target position. The t term therefore gives less of a penalty. The opposite is true once more time has passed: the longer the system stays away from the target postion, the more it will be penalized. 
+
+This method allows me to test a wide range of PID gains. I chose to only apply gains for Kp and Kd, leaving Ki equal to 0. This is because of the `qfrc_bias` I chose to apply to each joint. The qfrc_bias compensates for gravitational forces, coriolis forces, and centrifugal forces. This can be explained through the fundamental quation of motion for rigid bodies.
+
+M(q)q̈ + C(q,q̇)q̇ + g(q) = τ 
+
+$M(q)$: The mass/inertia matrix. It represents the mass and rotational inertia of the robot. ($q$) dependent because a robot's inertia changes depending on its position ($q$). If you spin around with your arms tucked in, you rotate easily. If you extend your arms out wide, your rotational inertia increases, making it harder to spin.
+$\ddot{q}$: Joint accelerations.
+M(q)q̈: teh whole term represents the force/torque required to physically accelerate the robot's body parts from one speed to another, ignoring gravity and friction.
+
+C(q,q̇): The Coriolis/Centrifugal Matrix. This is a coefficient matrix that represents how rotational forces interact with each other.
+$\dot{q}$ (Velocity): The current speed of the joints.
+C(q,q̇)q̇: The whole term represents the centrifugal force: the outward pull. If a robotic shoulder spins rapidly, the forearm is naturally slung outward away from the center, and also represents the coriolis force: the twisting force that happens when a link moves inward or outward while the whole system is spinning.
+
+g(q): The Gravity Vector. This term represents exactly how much torque is pulling down on each joint due to the weight of the robot's own limbs at that exact posture.
+
+The `qfrc_bias` is feedforward control where it anticipates a correct response, whereas normal PID tuning is feedback where it responds to an error and performs a reactionary correction.
 
 
 

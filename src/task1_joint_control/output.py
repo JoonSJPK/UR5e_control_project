@@ -21,7 +21,7 @@ def save_plot(dt, collect, joint_configs, out_path):
     x_values = [i * dt for i in range(steps)]
 
     fig, ax = plt.subplots()
-    for idx, kp, ki, kd, tgt in joint_configs:
+    for idx, *_ in joint_configs:
         ax.plot(x_values, collect[idx], label=f"Joint {idx + 1}")
 
     ax.axhline(y=0, color="r", linestyle="--", label="Zero error")
