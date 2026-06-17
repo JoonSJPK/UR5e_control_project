@@ -99,6 +99,11 @@ def main():
                     torque = -limit
                     saturated_time[idx] += dt
 
+                if(torque > limit or torque < -limit):
+                    print(torque)
+                else:
+                    print(torque)
+
                 data.qfrc_applied[idx] = torque
 
             if(data.time > 15 and not stats_printed):

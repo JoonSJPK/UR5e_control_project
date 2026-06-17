@@ -99,7 +99,9 @@ https://ctms.engin.umich.edu/CTMS/index.php?example=Introduction&section=Control
 
 ## Tuning Gains Kp, Ki, Kd
 
-Testing out the Ziegler-Nichols method and tuning the PID values empirically led to the same problem: there was not quantitative way of measuring if one set of gains was better than another. This led me to the problem of having a large set of gains that seemed to all show acceptable error results. This led me to use the ITAE technique.
+Testing out the Ziegler-Nichols method and tuning the PID values empirically led to the same problems: not using the Ki term seemed to result in a steady state error and trying to add Ki into the tuning seemed to lead to heavy overshoot. The second problem is known as integral windup where the integral term of the PID controller continues to accumulate causing the system to heavily overshoot and possibly oscillate. The solution to this problem was implementing a anti integral windup system where you put a integral term cap during torque computation.
+
+Now I had to deal with 4 variables: Kp, Ki, Kd, and now the integral limit. With so many combinations of values, I felt the Ziegler-Nichols method and empirical tuning was not a valid option. This led me to use the ITAE technique.
 
 When a controller tries to guide a system to a target value, it rarely hits it instantly. The difference between where the system currently is and where it wants to be is called the error, shown as $e(t)$. An ideal controller minimizes this error as fast as possible without causing the system to overshoot or oscillate. The ITAE method is a a mathematical formula that scores how well a controller is doing.
 
@@ -109,7 +111,22 @@ $t$: Time$|e(t)|$: The absolute value of the error at that specific moment.
 
 The t variable in the equation is a key factor when analyzing the effectiveness of chosen gains. When t is close to 0, the position of a joint is expectedly far from the target position. The t term therefore gives less of a penalty. The opposite is true once more time has passed: the longer the system stays away from the target postion, the more it will be penalized. 
 
-This method allows me to test a wide range of PID gains. I chose to only apply gains for Kp and Kd, leaving Ki equal to 0. This is because of the `qfrc_bias` I chose to apply to each joint. The qfrc_bias compensates for gravitational forces, coriolis forces, and centrifugal forces. This can be explained through the fundamental quation of motion for rigid bodies.
+This method allows me to test a wide range of PID gains by sweeping through ranges of all variables and scoring each combination; however, sweeping through every value of all 4 variables and going through each combination would not have been a efficient use of time. Therefore, I split the variables in to two groups: Kp/Kd and Ki/integral_limit. Even within these two groups I start the sweep in "big steps" of 20 for Ki and Kd. This allows me to find a smaller range of values to test using a step size of 1. The output of this process is a ITAE heat map with Kp and Kd values on each axis. The same process is done with Ki and integral limit (big step size is 5 for integral limit however) using the results of the previous sweep of Kp and Kd and keeping Kp and Kd as constants.
+
+The first run through was unsuccessful. Because the ITAE method give favorable scores to combinations that get to the target position the fastest without regard for torque limits, it gives values far beyond what is reasonable physically for the robot when considering torque limits. Although a torque limit of 150Nm and 28Nm was applied to size 1 and size 3 joints respectively, these gains were resulting in long saturation times. Therefore, I added my own term to the ITAE equation: a penalty proporitonal to the amount of time the robots stays outside of the torque limits.
+
+    overage = np.maximum(0.0, np.abs(torques) - tau_max)
+    penalty = float(np.sum(overage**2))
+
+    return itae + 1.0 * penalty
+
+The square on each overage term penalizes larger values outside of the torque limits. The constant multiplied with penalty was set as an arbitrary value.
+
+The next result was much better at staying within torque limits; however the system felt very sluggish. This meant that the penalty coefficient was far too large. After testing values between 0.0 and 1.0, a coefficient of 1e-8 was determined to output gains with a good balance of staying within torque limits and velocity.
+
+Although the overshoot problem improved and the steady state error was solved, there was still overshoot. Trying to improve one made the other problem worse. What tradeoff to favor depends on the task the robot is doing with these PID gains. For example with surgical robots, any amount of overshoot would not be acceptable as even a 1mm overshoot could contact areas of the task space like a blood vessel that should be be contacted. Surgical robots would reduce the Kp and incresase Kd to create a overdamped system where the arm would slowly reach the target position. Steady state error would not be acceptable in 3D printing because the layers of the printed object would not align leading to a useless printer.
+
+The steady state error caused in this specific configuration is caused by gravity. Currently there is no gravity compensation. One solution to this adding the data.qfrc_bias term to the final torque being applied. This gives compensation for both gravity and coriollis effects felt by the system. The fundamental equation explaining these effects is the following equation of motion for rigid objects.
 
 M(q)q̈ + C(q,q̇)q̇ + g(q) = τ 
 
@@ -122,8 +139,6 @@ $\dot{q}$ (Velocity): The current speed of the joints.
 C(q,q̇)q̇: The whole term represents the centrifugal force: the outward pull. If a robotic shoulder spins rapidly, the forearm is naturally slung outward away from the center, and also represents the coriolis force: the twisting force that happens when a link moves inward or outward while the whole system is spinning.
 
 g(q): The Gravity Vector. This term represents exactly how much torque is pulling down on each joint due to the weight of the robot's own limbs at that exact posture.
-
-The `qfrc_bias` is feedforward control where it anticipates a correct response, whereas normal PID tuning is feedback where it responds to an error and performs a reactionary correction.
 
 
 

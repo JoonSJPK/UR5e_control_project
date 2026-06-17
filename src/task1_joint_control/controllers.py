@@ -24,7 +24,7 @@ class PIDController:
       self.integral = self.integral_limit
     elif self.integral < -self.integral_limit:
       self.integral = -self.integral_limit
-      
+
     torques = (self.Kp * error) + (self.Ki * self.integral) - (self.Kd * curr_qvel)
 
     return torques

@@ -22,7 +22,13 @@ def save_plot(dt, collect, joint_configs, out_path):
 
     fig, ax = plt.subplots()
     for idx, *_ in joint_configs:
-        ax.plot(x_values, collect[idx], label=f"Joint {idx + 1}")
+        errors = collect[idx]
+        initial_sign = 1.0 if errors[0] >= 0 else -1.0
+        overshoot = 0.0
+        for e in errors:
+            if e * initial_sign < 0 and abs(e) > overshoot:
+                overshoot = abs(e)
+        ax.plot(x_values, errors, label=f"Joint {idx + 1} (max overshoot: {overshoot:.4f} rad)")
 
     ax.axhline(y=0, color="r", linestyle="--", label="Zero error")
     ax.set_xlim(0, 10)

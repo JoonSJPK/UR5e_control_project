@@ -98,7 +98,7 @@ def calc_itae(target, positions, torques, tau_max, times):
     overage = np.maximum(0.0, np.abs(torques) - tau_max)
     penalty = float(np.sum(overage**2))
 
-    return itae #+ 1.0 * penalty
+    return itae + 0.00000001 * penalty
 
 
 def run_grid(joint_idx, kp_values, kd_values):
