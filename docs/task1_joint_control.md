@@ -126,7 +126,7 @@ The next result was much better at staying within torque limits; however the sys
 
 Although the overshoot problem improved and the steady state error was solved, there was still overshoot. Trying to improve one made the other problem worse. What tradeoff to favor depends on the task the robot is doing with these PID gains. For example with surgical robots, any amount of overshoot would not be acceptable as even a 1mm overshoot could contact areas of the task space like a blood vessel that should be be contacted. Surgical robots would reduce the Kp and incresase Kd to create a overdamped system where the arm would slowly reach the target position. Steady state error would not be acceptable in 3D printing because the layers of the printed object would not align leading to a useless printer.
 
-The steady state error caused in this specific configuration is caused by gravity. Currently there is no gravity compensation. One solution to this adding the data.qfrc_bias term to the final torque being applied. This gives compensation for both gravity and coriollis effects felt by the system. The fundamental equation explaining these effects is the following equation of motion for rigid objects.
+The steady state error caused in this specific configuration is caused by the lack of gravity compensation. One solution to this adding the data.qfrc_bias term to the final torque being applied. This gives compensation for both gravity and coriollis effects felt by the system. The fundamental equation explaining these effects is the following equation of motion for rigid objects.
 
 M(q)q̈ + C(q,q̇)q̇ + g(q) = τ 
 
@@ -139,6 +139,11 @@ $\dot{q}$ (Velocity): The current speed of the joints.
 C(q,q̇)q̇: The whole term represents the centrifugal force: the outward pull. If a robotic shoulder spins rapidly, the forearm is naturally slung outward away from the center, and also represents the coriolis force: the twisting force that happens when a link moves inward or outward while the whole system is spinning.
 
 g(q): The Gravity Vector. This term represents exactly how much torque is pulling down on each joint due to the weight of the robot's own limbs at that exact posture.
+
+Adding this term to applied torque showed much better performance when Ki = 0: solving both the steady state error and overshoot problems. In this particular configuration, Ki being equal to 0 having the best performance makes sense because the qfrc_bias is compensating for gravity, the exact reason the Ki gain was needed to fix steady state error.
+
+## Conclusion
+
 
 
 
