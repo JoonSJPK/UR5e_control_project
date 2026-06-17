@@ -62,6 +62,8 @@ def main():
     hold_kp = 1000.0
 
     max_torque = [0,0,0,0,0,0]
+    saturated_time = [0.0,0.0,0.0,0.0,0.0,0.0]
+    stats_printed = False
 
     with mujoco.viewer.launch_passive(model, data) as viewer:
         initial_qpos = data.qpos.copy()
@@ -78,6 +80,8 @@ def main():
                 plot_saved = False
                 initial_qpos = data.qpos.copy()
                 max_torque = [0,0,0,0,0,0]
+                saturated_time = [0.0,0.0,0.0,0.0,0.0,0.0]
+                stats_printed = False
             prev_time = data.time
 
             for idx, controller in controllers.items():
@@ -90,13 +94,17 @@ def main():
                 limit = model.actuator_ctrlrange[idx, 1]
                 if torque > limit:
                     torque = limit
+                    saturated_time[idx] += dt
                 elif torque < -limit:
                     torque = -limit
+                    saturated_time[idx] += dt
 
                 data.qfrc_applied[idx] = torque
 
-            if(data.time > 15 and data.time < 20):
+            if(data.time > 15 and not stats_printed):
                 print(max_torque)
+                print(saturated_time)
+                stats_printed = True
             
             #update simulation
             mujoco.mj_step(model, data)

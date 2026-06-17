@@ -69,36 +69,44 @@ def run_headless(joint_idx, kp, kd, duration=DURATION, target=TARGET):
             model.eq_active0[eq_id] = 1
             data.eq_active[eq_id]   = 1
 
-    controller = PIDController(Kp=kp, Ki=0, Kd=kd)
-    steps      = int(duration / dt)
-    times      = np.arange(steps) * dt
-    positions  = np.empty(steps)
+    controller  = PIDController(Kp=kp, Ki=0, Kd=kd)
+    steps       = int(duration / dt)
+    times       = np.arange(steps) * dt
+    positions   = np.empty(steps)
+    max_torques = np.empty(steps)
+    max_torque  = model.actuator_ctrlrange[joint_idx, 1]
 
     for step in range(steps):
-        limit  = model.actuator_ctrlrange[joint_idx, 1]
         torque = controller.compute(dt, target, data.qpos[joint_idx], data.qvel[joint_idx])
-        if torque > limit:
-            torque = limit
-        elif torque < -limit:
-            torque = -limit
-        data.qfrc_applied[joint_idx] = torque
+        max_torques[step] = torque
+        applied = torque
+        if applied > max_torque:
+            applied = max_torque
+        elif applied < -max_torque:
+            applied = -max_torque
+        data.qfrc_applied[joint_idx] = applied
         mujoco.mj_step(model, data)
         positions[step] = data.qpos[joint_idx]
 
-    return times, positions
+    return times, positions, max_torques, max_torque
 
 
-def calc_itae(times, positions, target):
+def calc_itae(target, positions, torques, tau_max, times):
     error = np.abs(target - positions)
-    return float(np.sum(times * error * (times[1] - times[0])))
+    itae = float(np.sum(times * error * (times[1] - times[0])))
+
+    overage = np.maximum(0.0, np.abs(torques) - tau_max)
+    penalty = float(np.sum(overage**2))
+
+    return itae #+ 1.0 * penalty
 
 
 def run_grid(joint_idx, kp_values, kd_values):
     grid = np.zeros((len(kd_values), len(kp_values)))
     for j, kp in enumerate(kp_values):
         for w, kd in enumerate(kd_values):
-            t, pos       = run_headless(joint_idx, kp, kd)
-            grid[w, j]   = calc_itae(t, pos, TARGET)
+            t, pos, max_torques, max_torque = run_headless(joint_idx, kp, kd)
+            grid[w, j] = calc_itae(TARGET, pos, max_torques, max_torque, t)
     return grid
 
 
@@ -116,31 +124,34 @@ def run_headless_ki_limit(joint_idx, kp, kd, ki, limit_nm, duration=DURATION, ta
     # Convert the torque-unit integral cap into the raw integral cap
     # PIDController clamps (Ki * integral <= limit_nm  =>  integral <= limit_nm / Ki).
     integral_limit = limit_nm / ki if ki else float('inf')
-    controller = PIDController(Kp=kp, Ki=ki, Kd=kd, integral_limit=integral_limit)
-    steps      = int(duration / dt)
-    times      = np.arange(steps) * dt
-    positions  = np.empty(steps)
+    controller  = PIDController(Kp=kp, Ki=ki, Kd=kd, integral_limit=integral_limit)
+    steps       = int(duration / dt)
+    times       = np.arange(steps) * dt
+    positions   = np.empty(steps)
+    max_torques = np.empty(steps)
+    max_torque  = model.actuator_ctrlrange[joint_idx, 1]
 
     for step in range(steps):
-        limit  = model.actuator_ctrlrange[joint_idx, 1]
         torque = controller.compute(dt, target, data.qpos[joint_idx], data.qvel[joint_idx])
-        if torque > limit:
-            torque = limit
-        elif torque < -limit:
-            torque = -limit
-        data.qfrc_applied[joint_idx] = torque
+        max_torques[step] = torque
+        applied = torque
+        if applied > max_torque:
+            applied = max_torque
+        elif applied < -max_torque:
+            applied = -max_torque
+        data.qfrc_applied[joint_idx] = applied
         mujoco.mj_step(model, data)
         positions[step] = data.qpos[joint_idx]
 
-    return times, positions
+    return times, positions, max_torques, max_torque
 
 
 def run_grid_ki_limit(joint_idx, kp, kd, ki_values, limit_values):
     grid = np.zeros((len(limit_values), len(ki_values)))
     for j, ki in enumerate(ki_values):
         for w, limit_nm in enumerate(limit_values):
-            t, pos     = run_headless_ki_limit(joint_idx, kp, kd, ki, limit_nm)
-            grid[w, j] = calc_itae(t, pos, TARGET)
+            t, pos, max_torques, max_torque = run_headless_ki_limit(joint_idx, kp, kd, ki, limit_nm)
+            grid[w, j] = calc_itae(TARGET, pos, max_torques, max_torque, t)
     return grid
 
 
