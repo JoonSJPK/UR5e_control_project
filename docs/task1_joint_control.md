@@ -46,6 +46,8 @@ In order to be able test joints individually without interference from non teste
     <joint name="lock_wrist_3_joint"       joint1="wrist_3_joint"       polycoef="0 1 0 0 0" active="false"/>
   </equality>
 
+
+
 ### Friction Modeling
 
 To determine the joint damping coefficients for the UR5e simulation, the viscous friction parameters ($k_{v,j}$) shown in the electro-mechanical model by Clochiatti et al. (2024) was used. Because the paper shows these viscous coefficients from the motor side of the actuators, they cannot be directly applied to MuJoCo’s joint space configuration. Instead, to account for the robot's harmonic drive gearboxes, each motor-side coefficient must be scaled to the output joint space. In Modern Robotics (Lynch & Park), it is explained that a gearhead scales speed down by the gear ratio $G$ while magnifying output torque by the same factor. The joint viscous damping scales by the square of its gear reduction ratio ($N_j = 100$ for all six joints) using the relation $B_j = k_{v,j} \cdot N_j^2$. This transformation accounts for the fact that the motor spins $N$ times faster than the joint—generating $N$ times more friction.
@@ -113,7 +115,13 @@ The t variable in the equation is a key factor when analyzing the effectiveness 
 
 This method allows me to test a wide range of PID gains by sweeping through ranges of all variables and scoring each combination; however, sweeping through every value of all 4 variables and going through each combination would not have been a efficient use of time. Therefore, I split the variables in to two groups: Kp/Kd and Ki/integral_limit. Even within these two groups I start the sweep in "big steps" of 20 for Ki and Kd. This allows me to find a smaller range of values to test using a step size of 1. The output of this process is a ITAE heat map with Kp and Kd values on each axis. The same process is done with Ki and integral limit (big step size is 5 for integral limit however) using the results of the previous sweep of Kp and Kd and keeping Kp and Kd as constants.
 
-The first run through was unsuccessful. Because the ITAE method give favorable scores to combinations that get to the target position the fastest without regard for torque limits, it gives values far beyond what is reasonable physically for the robot when considering torque limits. Although a torque limit of 150Nm and 28Nm was applied to size 1 and size 3 joints respectively, these gains were resulting in long saturation times. Therefore, I added my own term to the ITAE equation: a penalty proporitonal to the amount of time the robots stays outside of the torque limits.
+The first run through was unsuccessful. Because the ITAE method give favorable scores to combinations that get to the target position the fastest without regard for torque limits, it gives values far beyond what is reasonable physically for the robot when considering torque limits. Although a torque limit of 150Nm and 28Nm was applied to size 1 and size 3 joints respectively, these gains were resulting in long saturation times. 
+
+![Test bottle in MuJoCo scene](task1.1_images/no_torque_penalty_kp.png)
+![Test bottle in MuJoCo scene](task1.1_images/no_torque_penalty_ki.png)
+![Test bottle in MuJoCo scene](task1.1_images/no_torque_penalty_image.png)
+
+Therefore, I added my own term to the ITAE equation: a penalty proporitonal to the amount of time the robots stays outside of the torque limits.
 
     overage = np.maximum(0.0, np.abs(torques) - tau_max)
     penalty = float(np.sum(overage**2))
@@ -122,9 +130,30 @@ The first run through was unsuccessful. Because the ITAE method give favorable s
 
 The square on each overage term penalizes larger values outside of the torque limits. The constant multiplied with penalty was set as an arbitrary value.
 
-The next result was much better at staying within torque limits; however the system felt very sluggish. This meant that the penalty coefficient was far too large. After testing values between 0.0 and 1.0, a coefficient of 1e-8 was determined to output gains with a good balance of staying within torque limits and velocity.
+The next result was much better at staying within torque limits; however the system felt very sluggish. This meant that the penalty coefficient was far too large. This is also seen by the program highly favoring lower Kp values, leading to flooring the lower end of the Kp range given.
+
+![Test bottle in MuJoCo scene](task1.1_images/torque_penalty_1.0_kp.png)
+![Test bottle in MuJoCo scene](task1.1_images/torque_penalty_1.0_ki.png)
+![Test bottle in MuJoCo scene](task1.1_images/torque_penalty_1.0_error.png)
+
+
+After testing values between 0.0 and 1.0, a coefficient of 1e-8 was determined to output gains with a good balance of staying within torque limits and velocity.
+
+![Test bottle in MuJoCo scene](task1.1_images/torque_penalty_0.5_kp.png)
+![Test bottle in MuJoCo scene](task1.1_images/torque_penalty_0.5_ki.png)
+![Test bottle in MuJoCo scene](task1.1_images/torque_penalty_0.5_error.png)
+
+![Test bottle in MuJoCo scene](task1.1_images/torque_penalty_1e-9_kp.png)
+![Test bottle in MuJoCo scene](task1.1_images/torque_penalty_1e-9_ki.png)
+![Test bottle in MuJoCo scene](task1.1_images/torque_penalty_1e-9_error.png)
+
+![Test bottle in MuJoCo scene](task1.1_images/torque_penalty_1e-8_kp.png)
+![Test bottle in MuJoCo scene](task1.1_images/torque_penalty_1e-8_ki.png)
+![Test bottle in MuJoCo scene](task1.1_images/torque_penalty_1e-8_error.png)
 
 Although the overshoot problem improved and the steady state error was solved, there was still overshoot. Trying to improve one made the other problem worse. What tradeoff to favor depends on the task the robot is doing with these PID gains. For example with surgical robots, any amount of overshoot would not be acceptable as even a 1mm overshoot could contact areas of the task space like a blood vessel that should be be contacted. Surgical robots would reduce the Kp and incresase Kd to create a overdamped system where the arm would slowly reach the target position. Steady state error would not be acceptable in 3D printing because the layers of the printed object would not align leading to a useless printer.
+
+![Test bottle in MuJoCo scene](task1.1_images/lambda_sweep.png)
 
 The steady state error caused in this specific configuration is caused by the lack of gravity compensation. One solution to this adding the data.qfrc_bias term to the final torque being applied. This gives compensation for both gravity and coriollis effects felt by the system. The fundamental equation explaining these effects is the following equation of motion for rigid objects.
 
@@ -144,7 +173,7 @@ Adding this term to applied torque showed much better performance when Ki = 0: s
 
 ## Conclusion
 
-
+## remember to add the images
 
 
 
