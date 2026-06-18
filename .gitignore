@@ -24,14 +24,10 @@ build/
 *.csv
 *.npy
 
-# Allow images in docs
-!docs/task1_images/*.png
-!docs/task1_images/*.jpg
-!docs/task2_images/*.png
-!docs/task2_images/*.jpg
-
-# Allow data in docs
-!docs/task1_data/*.csv
+# Allow all docs content
+!docs/**/*.png
+!docs/**/*.jpg
+!docs/**/*.csv
 
 # MuJoCo
 *.mjb
