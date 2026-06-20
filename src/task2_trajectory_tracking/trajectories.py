@@ -4,6 +4,7 @@ from datetime import datetime
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
+import numpy as np
 import mujoco
 import mujoco.viewer
 from tuned_controllers import PIDController
@@ -40,6 +41,8 @@ def main():
   collect_pos = {idx: [] for idx in range(6)}
   collect_tgt_vel = {idx: [] for idx in range(6)}
   collect_tgt_pos = {idx: [] for idx in range(6)}
+  collect_vel_error = {idx: [] for idx in range(6)}
+      
   count = 0
   plot_saved = False
 
@@ -71,7 +74,7 @@ def main():
                     data.ctrl[idx] = data.qpos[idx]
                     data.qfrc_applied[idx] = controller.compute(
                         dt, init[idx], data.qpos[idx], data.qvel[idx]
-                    ) + data.qfrc_bias[idx]
+                    ) #+ data.qfrc_bias[idx]
             elif( data.time >= trans_time and data.time <= trans_time + 8):
                 trans_tgt = []
                 for idx, controller in enumerate(controllers):
@@ -83,21 +86,23 @@ def main():
                     data.ctrl[idx] = data.qpos[idx]  # neutralize built-in spring actuator
                     data.qfrc_applied[idx] = controller.compute(
                         dt, trans_tgt[idx], data.qpos[idx], data.qvel[idx], tgt_vel
-                    ) + data.qfrc_bias[idx]
+                    ) #+ data.qfrc_bias[idx]
                 #collect data
                 if count < steps_total:
                     for idx in range(6):
+                        vel_error = np.abs(controllers[idx].compute_tgt_vel(curr_time) - data.qvel[idx])
                         collect_vel[idx].append(float(data.qvel[idx]))
                         collect_pos[idx].append(float(data.qpos[idx]))
                         collect_tgt_vel[idx].append(controllers[idx].compute_tgt_vel(curr_time))
                         collect_tgt_pos[idx].append(trans_tgt[idx])
+                        collect_vel_error[idx].append(vel_error)
                     count += 1
             else:
                 for idx, controller in enumerate(controllers):
                     data.ctrl[idx] = data.qpos[idx]
                     data.qfrc_applied[idx] = controllers[idx].compute(
                         dt, target[idx], data.qpos[idx], data.qvel[idx]
-                    ) + data.qfrc_bias[idx]
+                    ) #+ data.qfrc_bias[idx]
                 #collect data
                 if count < steps_total:
                     for idx in range(6):
@@ -129,6 +134,17 @@ def main():
                     axes[idx, 1].plot(times[:len(collect_tgt_vel[idx])], collect_tgt_vel[idx], label="target vel", linestyle="--")
                     axes[idx, 1].set_ylabel("Velocity (rad/s)")
                     axes[idx, 1].set_title(f"Joint {idx + 1} Velocity")
+                    if collect_vel_error[idx]:
+                        avg_err = np.mean(collect_vel_error[idx])
+                        max_err = np.max(collect_vel_error[idx])
+                        axes[idx, 1].text(
+                            0.02, 0.95,
+                            f"avg err: {avg_err:.4f}\nmax err: {max_err:.4f}",
+                            transform=axes[idx, 1].transAxes,
+                            va="top", ha="left",
+                            fontsize=8,
+                            bbox=dict(boxstyle="round", facecolor="white", alpha=0.7),
+                        )
                     axes[idx, 1].legend()
                 for ax in axes[-1]:
                     ax.set_xlabel("Time (s)")
