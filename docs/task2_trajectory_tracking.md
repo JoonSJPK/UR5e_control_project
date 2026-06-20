@@ -45,6 +45,27 @@ q(t) = self.init + accel * t ** 2 / 2, 0 <= t < t1
 q(t) = pos_at_t1 + self.v_peak * (t - self.t1), t1 <= t < t2
 q(t) = pos_at_t2 + self.v_peak * dt - decel * dt ** 2 / 2 #dt = t - self.t2
 
+## Initial Testing
+
+Putting in the PID gains I found from Task 1, I graphed inital velocity trajectory graphs of each joint. The graph shows average error, max error, and I normalized the average error against each joint's peak target velocity to calculate an alignment percentage (100% meaning average error of zero relative to that joint's velocity range). Adding a position vs time graph was also a helpful visualization of how the robot is moving.
+
+![no feedforward](task2.2_images/no_feedforward.png)
+
+The first test showed relatively poor alignment to the velocity graph with a overall alignment of 98.4%.
+
+## Feedforward
+
+Pure feedback control is reactive: it only produces torque once a tracking error already exists. When tracking a moving setpoint like the trapezoidal velocity profile, this means the loop has to build up a persistent position error just to keep producing the torque needed to track a non-zero target velocity, which is exactly the lag/error seen in Initial Testing.
+
+The fix is setpoint/command feedforward, a standard 2-DOF control architecture: since the target velocity is known analytically ahead of time (from `compute_tgt_vel`), it can be fed directly into the control signal in parallel with feedback, instead of relying on tracking error to reveal it after the fact. Feedback (`Kp`, `Ki`, and `- Kd*(curr_qvel)`) then only needs to correct for residual error and model mismatch, while feedforward (`Kv * target_qvel`) supplies the bulk of the torque the trajectory already tells us is needed.
+
+$$u(t) = K_p e(t) + K_i \int_{0}^{t} e(\tau) d\tau + K_d \frac{de(t)}{dt} + K_v \dot{q}_{target}(t)$$
+
+https://apmonitor.com/pdc/index.php/Main/FeedforwardControl
+https://web.stanford.edu/class/archive/ee/ee392m/ee392m.1034/Lecture5_Feedfrwrd.pdf
+
+
+
 
 
 

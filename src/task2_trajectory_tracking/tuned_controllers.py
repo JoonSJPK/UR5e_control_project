@@ -14,43 +14,43 @@ class PIDController:
           self.Ki = 300.0
           self.Kd = 38.0
           self.integral_limit = 30.0
-          self.Kv = 50.0
+          self.Kv = self.Kd
       case 1:
-          self.Kp = 375.0
-          self.Ki = 300.0
+          self.Kp = 1575.0
+          self.Ki = 900.0
           self.Kd = 45.0
           self.integral_limit = 30.0
-          self.Kv = 50.0
+          self.Kv = self.Kd
       case 2:
           self.Kp = 567.0
           self.Ki = 300.0
           self.Kd = 63.0
           self.integral_limit = 30.0
-          self.Kv = 50.0
+          self.Kv = self.Kd
       case 3:
           self.Kp = 300.0
           self.Ki = 100.0
           self.Kd = 28.0
           self.integral_limit = 5.0
-          self.Kv = 50.0
+          self.Kv = self.Kd
       case 4:
           self.Kp = 67.0
           self.Ki = 100.0
           self.Kd = 3.0
           self.integral_limit = 5.0
-          self.Kv = 50.0
+          self.Kv = self.Kd
       case 5:
           self.Kp = 78.0
           self.Ki = 100.0
           self.Kd = 3.0
           self.integral_limit = 5.0
-          self.Kv = 50.0
+          self.Kv = self.Kd
       case _:
           self.Kp = 0.0
           self.Ki = 0.0
           self.Kd = 0.0
           self.integral_limit = 0.0
-          self.Kv = 0.0
+          self.Kv = self.Kd
     
     self.integral = 0.0
     self.t1 = 2
@@ -71,7 +71,7 @@ class PIDController:
     pos_error = target_qpos - curr_qpos
     self.integral += pos_error * dt
     self.integral = np.clip(self.integral, -self.integral_limit, self.integral_limit)
-    torques = (self.Kp * pos_error) + (self.Ki * self.integral) + (self.Kd * (target_qvel - curr_qvel)) #+ (self.Kv * target_qvel)
+    torques = (self.Kp * pos_error) + (self.Ki * self.integral) - (self.Kd * curr_qvel) + (self.Kv * target_qvel)
 
     return torques
 

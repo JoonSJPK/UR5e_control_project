@@ -72,9 +72,11 @@ def main():
             if( data.time >= 0.0 and data.time < trans_time ):
                 for idx, controller in enumerate(controllers):
                     data.ctrl[idx] = data.qpos[idx]
-                    data.qfrc_applied[idx] = controller.compute(
+                    torque = controller.compute(
                         dt, init[idx], data.qpos[idx], data.qvel[idx]
                     ) #+ data.qfrc_bias[idx]
+                    limit = model.actuator_ctrlrange[idx, 1]
+                    data.qfrc_applied[idx] = np.clip(torque, -limit, limit)
             elif( data.time >= trans_time and data.time <= trans_time + 8):
                 trans_tgt = []
                 for idx, controller in enumerate(controllers):
@@ -84,9 +86,14 @@ def main():
                 for idx, controller in enumerate(controllers):
                     tgt_vel = controller.compute_tgt_vel(curr_time)
                     data.ctrl[idx] = data.qpos[idx]  # neutralize built-in spring actuator
-                    data.qfrc_applied[idx] = controller.compute(
+                    torque = controller.compute(
                         dt, trans_tgt[idx], data.qpos[idx], data.qvel[idx], tgt_vel
                     ) #+ data.qfrc_bias[idx]
+                    limit = model.actuator_ctrlrange[idx, 1]
+                    if limit < np.abs(torque):
+                        print(f"joint {idx} saturated: {torque:.1f} > {limit:.1f} N·m")
+
+                    data.qfrc_applied[idx] = np.clip(torque, -limit, limit)
                 #collect data
                 if count < steps_total:
                     for idx in range(6):
@@ -100,9 +107,11 @@ def main():
             else:
                 for idx, controller in enumerate(controllers):
                     data.ctrl[idx] = data.qpos[idx]
-                    data.qfrc_applied[idx] = controllers[idx].compute(
+                    torque = controllers[idx].compute(
                         dt, target[idx], data.qpos[idx], data.qvel[idx]
                     ) #+ data.qfrc_bias[idx]
+                    limit = model.actuator_ctrlrange[idx, 1]
+                    data.qfrc_applied[idx] = np.clip(torque, -limit, limit)
                 #collect data
                 if count < steps_total:
                     for idx in range(6):
@@ -137,9 +146,12 @@ def main():
                     if collect_vel_error[idx]:
                         avg_err = np.mean(collect_vel_error[idx])
                         max_err = np.max(collect_vel_error[idx])
+                        vel_range = np.max(np.abs(collect_tgt_vel[idx])) or 1.0
+                        alignment_pct = max(0.0, 1.0 - avg_err / vel_range) * 100.0
                         axes[idx, 1].text(
                             0.02, 0.95,
-                            f"avg err: {avg_err:.4f}\nmax err: {max_err:.4f}",
+                            f"avg err: {avg_err:.4f} rad/s\nmax err: {max_err:.4f} rad/s\n"
+                            f"alignment: {alignment_pct:.1f}%",
                             transform=axes[idx, 1].transAxes,
                             va="top", ha="left",
                             fontsize=8,
@@ -148,7 +160,19 @@ def main():
                     axes[idx, 1].legend()
                 for ax in axes[-1]:
                     ax.set_xlabel("Time (s)")
-                plt.tight_layout()
+                all_vel_errors = [err for idx in range(6) for err in collect_vel_error[idx]]
+                all_tgt_vels = [v for idx in range(6) for v in collect_tgt_vel[idx]]
+                if all_vel_errors:
+                    overall_avg_err = np.mean(all_vel_errors)
+                    overall_max_err = np.max(all_vel_errors)
+                    overall_vel_range = np.max(np.abs(all_tgt_vels)) or 1.0
+                    overall_alignment_pct = max(0.0, 1.0 - overall_avg_err / overall_vel_range) * 100.0
+                    fig.suptitle(
+                        f"Overall (all 6 joints) avg err: {overall_avg_err:.4f} rad/s | "
+                        f"max err: {overall_max_err:.4f} rad/s | "
+                        f"alignment: {overall_alignment_pct:.1f}%"
+                    )
+                plt.tight_layout(rect=(0, 0, 1, 0.97))
                 out_path = os.path.join(os.path.dirname(__file__), f"vel_6_joints_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png")
                 fig.savefig(out_path)
                 plt.close(fig)
