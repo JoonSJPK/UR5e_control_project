@@ -1,64 +1,106 @@
 ## Task 2 (Trajectory Tracking) Objectives
 
-- Generate a smooth joint-space trajectory between two joint configurations. 
-- You can use either a trapezoidal velocity profile or a quintic polynomial trajectory. 
+- Generate a smooth joint-space trajectory between two joint configurations.
+- You can use either a trapezoidal velocity profile or a quintic polynomial trajectory.
 - Then track that trajectory and plot the desired joint positions versus the actual joint positions.
 
 ## Mathematics
 
 First, the generalized velocity equations for the joint-space trajectory using a trapezoidal velocity profile were formed.
 
-v(t) = at, 0 <= t < t1
-v(t) = b, t1 <= t < t2
-v(t) = -at + c, t2 <= t < t3
+$$
+v(t) =
+\begin{cases}
+at, & 0 \le t < t_1 \\
+b, & t_1 \le t < t_2 \\
+-at + c, & t_2 \le t < t_3
+\end{cases}
+$$
 
 By integrating these equations with respect to time, you are left with the model for positon.
 
-q(t) = at^2 / 2 + q(0), 0 <= t < t1
-q(t) = bt + at1^2 / 2 + q(0) - bt1, t1 <= t < t2
-q(t) = -at^2 / 2 + ct + bt2 + at1^2 / 2 + q(0) - bt1 + at2^2 / 2 - ct2
+$$
+q(t) =
+\begin{cases}
+\dfrac{at^2}{2} + q(0), & 0 \le t < t_1 \\[6pt]
+bt + \dfrac{at_1^2}{2} + q(0) - bt_1, & t_1 \le t < t_2 \\[6pt]
+-\dfrac{at^2}{2} + ct + bt_2 + \dfrac{at_1^2}{2} + q(0) - bt_1 + \dfrac{at_2^2}{2} - ct_2, & t_2 \le t < t_3
+\end{cases}
+$$
 
-Currently there are two problems with my first attempt. Firstly, the final integrated equations are not very readable and will be hard to debug. Secondly, because I chose the acceleration constant, a, and the deceleration constant, a negated, to be equal, these equations are not generalized. 
+Currently there are two problems with my first attempt. Firstly, the final integrated equations are not very readable and will be hard to debug. Secondly, because I chose the acceleration constant, a, and the deceleration constant, a negated, to be equal, these equations are not generalized.
 
 I first wrote down some definitions.
 
-area = (½·t₁·v_peak) + ((t₂−t₁)·v_peak) + (½·(t₃−t₂)·v_peak)
-area = v_peak · [ t₁/2 + (t₂−t₁) + (t₃−t₂)/2 ]
-where time_factor = [ t₁/2 + (t₂−t₁) + (t₃−t₂)/2 ]
+$$
+\text{area} = \frac{1}{2}t_1 v_{peak} + (t_2-t_1)v_{peak} + \frac{1}{2}(t_3-t_2)v_{peak}
+$$
 
-time_factor · v_peak = target - init #total displacement
-v_peak = (target - init) / time_factor
+$$
+\text{area} = v_{peak}\left[\frac{t_1}{2} + (t_2-t_1) + \frac{t_3-t_2}{2}\right], \qquad \text{time\_factor} = \frac{t_1}{2} + (t_2-t_1) + \frac{t_3-t_2}{2}
+$$
 
-I then looked at my constants to solve this generalization problem
+$$
+\text{time\_factor} \cdot v_{peak} = \text{target} - \text{init} \quad \text{(total displacement)}
+$$
+
+$$
+v_{peak} = \frac{\text{target} - \text{init}}{\text{time\_factor}}
+$$
+
+I then looked at my constants to solve this generalization problem.
 I noticed a is the acceleration constant:
-accel = v_peak / t1 #rise/run of the velocity graph
+
+$$
+accel = \frac{v_{peak}}{t_1} \quad \text{(rise/run of the velocity graph)}
+$$
+
 And -a is the deceleration constant:
-decel = v_peak / (t3 - t2) #rise/run of the velocity graph
+
+$$
+decel = \frac{v_{peak}}{t_3 - t_2} \quad \text{(rise/run of the velocity graph)}
+$$
+
 This sucessesfully only uses the definitions provided and time parameters of t1-t3.
 
-
 Looking at my first set of equations, much simplification could be performed with the initial value conditions such as position at t1 and t2.
-pos_at_t1 = init + accel * t1**2 / 2 #inital position is a variable
-pos_at_t2 = pos_at_t1 + v_peak * (t2 - t1)
 
+$$
+q(t_1) = q(0) + \frac{accel \cdot t_1^2}{2} \quad \text{(inital position is a variable)}
+$$
+
+$$
+q(t_2) = q(t_1) + v_{peak}(t_2 - t_1)
+$$
+
+```
 q(t) = self.init + accel * t ** 2 / 2, 0 <= t < t1
 q(t) = pos_at_t1 + self.v_peak * (t - self.t1), t1 <= t < t2
 q(t) = pos_at_t2 + self.v_peak * dt - decel * dt ** 2 / 2 #dt = t - self.t2
+```
 
 ## Initial Testing
 
 The inital and target positions were the following in radians:
-  init  = [-1.5708, -1.5708, -1.5708, -1.5708, -1.5708, -1.5708]
-  target = [1.5708, -3.1416, 1.5708, -3.1416, 1.5708, -3.1416]
+
+```
+init  = [-1.5708, -1.5708, -1.5708, -1.5708, -1.5708, -1.5708]
+target = [1.5708, -3.1416, 1.5708, -3.1416, 1.5708, -3.1416]
+```
 
 With t1 - t3 as the following values in seconds
-    self.t1 = 2
-    self.t2 = 6
-    self.t3 = 8
+
+```
+self.t1 = 2
+self.t2 = 6
+self.t3 = 8
+```
 
 Putting in the PID gains I found from Task 1, I graphed inital velocity trajectory graphs of each joint. The graph shows average error, max error, and with the help of AI, I normalized the average error against each joint's peak target velocity to make an alignment percentage equation.
 
-max(0.0, 1.0 - avg_err / vel_range) * 100.0
+$$
+\text{alignment} = \max\!\left(0,\ 1 - \frac{\overline{err}}{v_{range}}\right) \times 100
+$$
 
 I didn't just want express'did it match or not the target velocity', I wanted the score to scale proportionally with how large the error was. Although this linear scaling is floored at 0% if the average error meets or exceeds the joint's own peak velocity range.".
 
@@ -76,18 +118,18 @@ The fix is setpoint/command feedforward architecture: since the target velocity 
 
 $$u(t) = K_p e(t) + K_i \int_{0}^{t} e(\tau) d\tau + K_d \frac{de(t)}{dt} + K_v \dot{q}_{target}(t)$$
 
-https://apmonitor.com/pdc/index.php/Main/FeedforwardControl
-https://web.stanford.edu/class/archive/ee/ee392m/ee392m.1034/Lecture5_Feedfrwrd.pdf
+- https://apmonitor.com/pdc/index.php/Main/FeedforwardControl
+- https://web.stanford.edu/class/archive/ee/ee392m/ee392m.1034/Lecture5_Feedfrwrd.pdf
 
 The following was the result of the first feedback implementation.
 
-![no feedforward](task2.2_images/no_feedforward.png). 
+![no feedforward](task2.2_images/no_feedforward.png)
 
 Qualitative observations of the graph show much better alignment during the linear and constant sections of the trapazoidal trajectory; however, performance degrades at the trapezoid's corners (t1, t2, t3), where the acceleration changes discontinuously. These jerk discontinuities, for a moment, desynchronize the feedforward term from the system's actual achievable response. Quantitative observations show an improvement all around.
 
- Average error: 0.0082 rad/s -> 0.0021 rad/s
- Max error: 0.0410 rad/s -> 0.0162 rad/s
- Alignment: 98.4% -> 99.6%
+- Average error: 0.0082 rad/s -> 0.0021 rad/s
+- Max error: 0.0410 rad/s -> 0.0162 rad/s
+- Alignment: 98.4% -> 99.6%
 
 ![feedforward](task2.2_images/feedforward.png)
 
@@ -99,7 +141,7 @@ Increasing Kp from 375 to 475 and Ki from 300 to 350 gave marginally better resu
 
 ![no feedforward](task2.2_images/kp475_ki350.png)
 
-I continuously increased Kp and Ki until I no longer saw improvement. This was at Kp = 1575 and Ki = 900 where joint 2 performance nearly matched that of the other joints
+I continuously increased Kp and Ki until I no longer saw improvement. This was at Kp = 1575 and Ki = 900 where joint 2 performance nearly matched that of the other joints.
 
 ![no feedforward](task2.2_images/kp1575_ki900.png)
 
@@ -113,13 +155,8 @@ Pure PID feedback alone produced a reactive lag (98.4% overall alignment), since
 
 Joint 2 stood out as the weakest performer because it carries the rest of the arm's weight against gravity, and feedback alone needs a position sag to generate enough holding torque. Increasing Kp and Ki for that joint specifically closed nearly all of the remaining gap, at the cost of gains that would be riskier for noise/instability on real hardware than they are in simulation.
 
-
 ## Postion graph with errors
-
-
-
-
 
 ## Links
 
-https://www.youtube.com/watch?v=-oGNxB86YEk
+- https://www.youtube.com/watch?v=-oGNxB86YEk
