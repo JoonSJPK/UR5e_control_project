@@ -175,7 +175,7 @@ Adding this term to applied torque showed much better performance when Ki = 0: s
 
 ## remember to add the images
 
-
+## saturation tradeoffs
 
 
 
