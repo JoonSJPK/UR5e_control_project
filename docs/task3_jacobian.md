@@ -118,90 +118,113 @@ Also, the magnitude of the error vector can be found at this step
 ||e|| = sqrt(ex^2 + ey^2 + ez^2)
  
 ## Step 3 (Jacobian)
-
+ 
 ### Build $J_v$
-
+ 
 Each column of the linear-velocity Jacobian is:
-
-$$\text{column}_i \;=\; \mathbf{z}_{i-1} \times (\mathbf{p}_e - \mathbf{p}_{i-1})$$
-
-$$
+ 
+```math
+\text{column}_i \;=\; \mathbf{z}_{i-1} \times (\mathbf{p}_e - \mathbf{p}_{i-1})
+```
+ 
+```math
 J_v =
 \begin{bmatrix}
 \mathbf{z}_0 \times (\mathbf{p}_e - \mathbf{p}_0)
 & \cdots &
 \mathbf{z}_5 \times (\mathbf{p}_e - \mathbf{p}_5)
 \end{bmatrix}
-$$
-
+```
+ 
 **Dimensions:** $J_v$ is $m \times n$ with $m = 3$, $n = 6$.
-
+ 
 ---
-
+ 
 ## Step 4: Damped Least-Squares Solve
-
-Goal: solve $J_v\,\Delta\theta = \Delta p$, picking the smallest solution and damping it.
-
+ 
+Goal: solve $J_v \Delta\theta = \Delta p$, picking the smallest solution and damping it.
+ 
 ### Why we can't just invert
-
-$$J\,\Delta\theta = \Delta p \quad\Longrightarrow\quad \Delta\theta = J^{-1}\,\Delta p \;\; \color{red}{\times}$$
-
+ 
+```math
+J\,\Delta\theta = \Delta p \quad\Longrightarrow\quad \Delta\theta = J^{-1}\,\Delta p \;\; \color{red}{\times}
+```
+ 
 $J$ is a $3 \times 6$ matrix, so it is not square. This is 3 equations with 6 unknowns, so there are $\infty$ solutions.
-
+ 
 Instead, search in the row space of $J$:
-
-$$\Delta\theta = J^{\mathsf{T}} w$$
-
+ 
+```math
+\Delta\theta = J^{\mathsf{T}} w
+```
+ 
 > The smallest (minimum-norm) solution throws away the "wasted" part; what's left lives in the row space of $J$. Here $w$ is a 3-vector.
-
+ 
 Substituting back:
-
-$$J(J^{\mathsf{T}} w) = \Delta p \;\Longrightarrow\; (J J^{\mathsf{T}})\,w = \Delta p \;\Longrightarrow\; w = (J J^{\mathsf{T}})^{-1}\,\Delta p$$
-
-$$\Delta\theta = J^{\mathsf{T}} w = J^{\mathsf{T}} (J J^{\mathsf{T}})^{-1}\,\Delta p \qquad (\text{pseudoinverse})$$
-
+ 
+```math
+J(J^{\mathsf{T}} w) = \Delta p \;\Longrightarrow\; (J J^{\mathsf{T}})\,w = \Delta p \;\Longrightarrow\; w = (J J^{\mathsf{T}})^{-1}\,\Delta p
+```
+ 
+```math
+\Delta\theta = J^{\mathsf{T}} w = J^{\mathsf{T}} (J J^{\mathsf{T}})^{-1}\,\Delta p \qquad (\text{pseudoinverse})
+```
+ 
 ---
-
+ 
 ### Algorithm
-
+ 
 **a) Inputs**
-
+ 
 $J_v$ is a $3 \times 6$ matrix, and the task-space error step is:
-
-$$\Delta p = \alpha\, e = 0.5 \begin{bmatrix} \,\cdot\, \\ \,\cdot\, \\ \,\cdot\, \end{bmatrix}$$
-
+ 
+```math
+\Delta p = \alpha\, e = 0.5 \begin{bmatrix} \,\cdot\, \\ \,\cdot\, \\ \,\cdot\, \end{bmatrix}
+```
+ 
 **b) Form the damped normal matrix**
-
-$$A = J_v J_v^{\mathsf{T}} + \lambda^2 I \qquad [\,3 \times 3\,], \quad \lambda^2 \approx 0.0025$$
-
+ 
+```math
+A = J_v J_v^{\mathsf{T}} + \lambda^2 I \qquad [\,3 \times 3\,], \quad \lambda^2 \approx 0.0025
+```
+ 
 The $\lambda^2 I$ term is damping to account for singularities.
-
+ 
 **c) Solve for $y$**
-
-$$y = A^{-1}\,\Delta p \qquad [3 \times 3][3 \times 1] \Rightarrow [3 \times 1]$$
-
+ 
+```math
+y = A^{-1}\,\Delta p \qquad [3 \times 3][3 \times 1] \Rightarrow [3 \times 1]
+```
+ 
 **d) Map back to joint space**
-
-$$\Delta\theta = J_v^{\mathsf{T}}\, y \qquad [6 \times 3][3 \times 1] \Rightarrow [6 \times 1]$$
-
+ 
+```math
+\Delta\theta = J_v^{\mathsf{T}}\, y \qquad [6 \times 3][3 \times 1] \Rightarrow [6 \times 1]
+```
+ 
 **e) Update the joint angles**
-
-$$\theta_{\text{new}} = \theta_{\text{old}} + \Delta\theta$$
-
+ 
+```math
+\theta_{\text{new}} = \theta_{\text{old}} + \Delta\theta
+```
+ 
 ---
-
+ 
 ## The Pseudoinverse (Moore-Penrose inverse)
-
-$$J^{+} = J^{\mathsf{T}} (J J^{\mathsf{T}})^{-1}$$
-
+ 
+```math
+J^{+} = J^{\mathsf{T}} (J J^{\mathsf{T}})^{-1}
+```
+ 
 - A generalization of a matrix inverse.
 - Used when a system of linear equations $A x = b$ doesn't have a unique solution; it provides the best-fit approximate solution.
 - It computes the minimum-norm least-squares solution.
-
 The damped version (with $\lambda^2 I$) is the practical form used in code:
-
-$$\Delta\theta = J^{\mathsf{T}} (J J^{\mathsf{T}} + \lambda^2 I)^{-1}\,\Delta p$$
-
-
-
+ 
+```math
+\Delta\theta = J^{\mathsf{T}} (J J^{\mathsf{T}} + \lambda^2 I)^{-1}\,\Delta p
+```
+ 
+ 
+ 
 ![Task 3 Demo](task3_images/task3_demo.gif)
