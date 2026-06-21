@@ -37,15 +37,15 @@ $$
 $$
 
 $$
-\text{area} = v_{peak}\left[\frac{t_1}{2} + (t_2-t_1) + \frac{t_3-t_2}{2}\right], \qquad \text{time\_factor} = \frac{t_1}{2} + (t_2-t_1) + \frac{t_3-t_2}{2}
+\text{area} = v_{peak}\left[\frac{t_1}{2} + (t_2-t_1) + \frac{t_3-t_2}{2}\right], \qquad T_f = \frac{t_1}{2} + (t_2-t_1) + \frac{t_3-t_2}{2}
 $$
 
 $$
-\text{time\_factor} \cdot v_{peak} = \text{target} - \text{init} \quad \text{(total displacement)}
+T_f \cdot v_{peak} = \text{target} - \text{init} \quad \text{(total displacement)}
 $$
 
 $$
-v_{peak} = \frac{\text{target} - \text{init}}{\text{time\_factor}}
+v_{peak} = \frac{\text{target} - \text{init}}{T_f}
 $$
 
 I then looked at my constants to solve this generalization problem.
