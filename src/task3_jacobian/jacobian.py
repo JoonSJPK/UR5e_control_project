@@ -8,7 +8,7 @@ import math
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D  # noqa: F401  (registers 3d projection)
+from mpl_toolkits.mplot3d import Axes3D 
 
 from jacobian_controllers import PIDController
 
@@ -27,8 +27,12 @@ def main():
 
     mujoco.mj_forward(model, data)
     validate_fk(model, data, controllers)
-    target = bottle_grasp_target(model, data, height_frac=1.0)
-    e_mag = 100
+    target_p = bottle_grasp_target(model, data, height_frac=1.0)
+    target_r = np.array([[ 1.0,  0.0,  0.0],
+                         [ 0.0, -1.0,  0.0],
+                         [ 0.0,  0.0, -1.0]])
+    e_p_mag = 100
+    e_r_mag = 100
 
     site_id = model.site("attachment_site").id
     path_log = []
@@ -41,7 +45,7 @@ def main():
 
           if (data.time > 6) and not path_saved:
             path_log.clear()
-            while (e_mag > 0.001):
+            while (e_p_mag > 0.001 or e_r_mag > 0.001):
 
               for _ in range(10):
                 mujoco_move(dt, viewer, controllers, model, data, init_theta, site_id, path_log)
@@ -53,30 +57,45 @@ def main():
 
               trans_cum_matrix, trans_matrix, z, p = fk_trans_matrix(elem_steps)
 
-              e = calc_error(target, trans_cum_matrix)
-              e_mag = calc_e_mag(e)
-              print(e_mag)
+              e_p = calc_error_p(target_p, trans_cum_matrix)
+              e_r = calc_error_r(target_r, trans_cum_matrix)
+              e_p_mag = calc_e_mag(e_p)
+              e_r_mag = calc_e_mag(e_r)
+              print(f"e_p={e_p_mag:.4f}  e_r={e_r_mag:.4f}")
 
               pe = p[-1]
               jv_transpose = []
+              jw_transpose = []
               for idx in range(6):
                 jv_transpose.append(calc_jv_column(z[idx], pe - p[idx]))
+                jw_transpose.append(z[idx])
 
               jv = np.array(jv_transpose).T
+              jw = np.array(jw_transpose).T
+              j = np.vstack([jv, jw]) 
+              j_transpose = np.array(j).T
 
               step_size = 0.01
-              delta_p = [step_size * e[0], step_size * e[1], step_size * e[2]]
-              identity = np.array([[1,0,0],
-                                  [0,1,0],
-                                  [0,0,1]])
+              rot_size = 0.01
+              error = [step_size * e_p[0],
+                       step_size * e_p[1], 
+                       step_size * e_p[2],
+                       rot_size * e_r[0],
+                       rot_size * e_r[1], 
+                       rot_size * e_r[2],]
+              identity = np.array([[1,0,0,0,0,0],
+                                   [0,1,0,0,0,0],
+                                   [0,0,1,0,0,0],
+                                   [0,0,0,1,0,0],
+                                   [0,0,0,0,1,0],
+                                   [0,0,0,0,0,1],])
               lambda_squared = 0.0025 ** 2
 
-              delta_theta = (jv_transpose @ np.linalg.inv((jv @ jv_transpose) + (lambda_squared * identity))) @ delta_p
+              delta_theta = (j_transpose @ np.linalg.inv((j @ j_transpose) + (lambda_squared * identity))) @ error
 
               init_theta = np.add(init_theta, delta_theta)
 
-            # IK converged (e_mag <= 0.001) -- save the path once
-            plot_ee_path(path_log, target)
+            plot_ee_path(path_log, target_p)
             path_saved = True
 
 def bottle_grasp_target(model, data, height_frac=1.0):
@@ -164,16 +183,54 @@ def calc_p(matrix):
    pi = np.array([px, py, pz])
    return pi
 
-def calc_error(tgt, matrix): 
+def calc_r(matrix):
+   r11 = matrix[0][0]
+   r12 = matrix[0][1]
+   r13 = matrix[0][2]
+
+   r21 = matrix[1][0]
+   r22 = matrix[1][1]
+   r23 = matrix[1][2]
+
+   r31 = matrix[2][0]
+   r32 = matrix[2][1]
+   r33 = matrix[2][2]
+
+   r = np.array([[r11, r12, r13],
+                 [r21, r22, r23],
+                 [r31, r32, r33],])
+   return r
+
+def calc_error_p(tgt, matrix): 
    pe = calc_p(matrix)
 
    ex = tgt[0] - pe[0]
    ey = tgt[1] - pe[1]
    ez = tgt[2] - pe[2]
 
-   e = np.array([ex, ey, ez])
+   e_p = np.array([ex, ey, ez])
 
-   return e
+   return e_p
+
+def calc_error_r(tgt, matrix):
+
+   r = calc_r(matrix)
+   re = np.array(tgt) @ np.array(r).T
+
+   cos_theta = (np.trace(re) - 1.0) / 2.0
+   cos_theta = np.clip(cos_theta, -1.0, 1.0)
+   e_theta = np.arccos(cos_theta)
+
+   axis = np.array([re[2, 1] - re[1, 2],
+                    re[0, 2] - re[2, 0],
+                    re[1, 0] - re[0, 1]])
+
+   sin_theta = np.sin(e_theta)
+   if abs(sin_theta) < 1e-9:
+      return np.zeros(3)
+
+   e_r = (e_theta / (2.0 * sin_theta)) * axis
+   return e_r
 
 def calc_z_axis(matrix):
    z1 = matrix[0][2]
