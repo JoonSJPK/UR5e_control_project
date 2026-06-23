@@ -59,7 +59,7 @@ def main():
 
           mujoco_move(dt, viewer, controllers, model, data, init_theta, site_id, path_log)
 
-def ik_step(controllers, data, p_target, R_d, K_p=0.01, K_o=0.01, lambda_squared=0.0025 ** 2):
+def ik_step(controllers, data, p_target, R_d, K_p=0.0008, K_o=0.0008, lambda_squared=0.0025 ** 2):
   elem_steps = []
   for idx in range(6):
     controllers[idx].theta = data.qpos[idx]
