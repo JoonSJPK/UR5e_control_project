@@ -284,6 +284,9 @@ K_o\,e_o
 ```
  
 The two gains are needed because $e_p$ is in **meters** and $e_o$ is in **radians**; $K_p$ and $K_o$ weight the two so neither dominates the step. ($K_p$ plays the same role the step size $\alpha = 0.5$ did in the position-only version.)
+
+https://en.wikipedia.org/wiki/Axis%E2%80%93angle_representation
+https://en.wikipedia.org/wiki/Euler%27s_rotation_theorem
  
 ### Step 3 (Jacobian): add the orientation rows
  
