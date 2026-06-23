@@ -20,13 +20,9 @@ def main():
     for idx in range(6):
       controllers.append(PIDController(joint = idx, theta = init_theta[idx]))
 
-    # Cartesian target position
     mujoco.mj_forward(model, data)
-    tgt_x = data.body("bottle_target").xpos[0]
-    tgt_y = data.body("bottle_target").xpos[1]
-    tgt_z = data.body("bottle_target").xpos[2] + 0.1
-    #target = [tgt_x, tgt_y, tgt_z]
-    target = [tgt_x, tgt_y, 0.3]
+    validate_fk(model, data, controllers)
+    target = bottle_grasp_target(model, data, height_frac=1.0)
     e_mag = 100
 
     with mujoco.viewer.launch_passive(model, data) as viewer:
@@ -34,7 +30,7 @@ def main():
 
           mujoco_move(dt, viewer, controllers, model, data, init_theta)
 
-          if (data.time > 4):
+          if (data.time > 6):
             while (e_mag > 0.001):
 
               for _ in range(10):
@@ -68,6 +64,63 @@ def main():
               delta_theta = (jv_transpose @ np.linalg.inv((jv @ jv_transpose) + (lambda_squared * identity))) @ delta_p
 
               init_theta = np.add(init_theta, delta_theta)
+
+def bottle_grasp_target(model, data, height_frac=1.0):
+  body_id = model.body("bottle_target").id
+  geom_id = None
+  for g in range(model.ngeom):
+    if model.geom_bodyid[g] == body_id:
+      geom_id = g
+      break
+
+  # local AABB: center (cx,cy,cz) + half-sizes (_,_,hz)
+  cx, cy, cz, _, _, hz = model.geom_aabb[geom_id]
+  bottom_local = np.array([cx, cy, cz - hz])
+  top_local    = np.array([cx, cy, cz + hz])
+  grasp_local  = bottom_local + height_frac * (top_local - bottom_local)
+
+  # transform from geom frame to world frame
+  geom_pos = data.geom_xpos[geom_id]
+  geom_mat = data.geom_xmat[geom_id].reshape(3, 3)
+  return geom_pos + geom_mat @ grasp_local
+
+def fk_world_pos(controllers, q):
+  elem_steps = []
+  for idx in range(6):
+    controllers[idx].theta = q[idx]
+    elem_steps.append(controllers[idx].fk_elem_step())
+
+  trans_cum_matrix, _, _, _ = fk_trans_matrix(elem_steps)
+  return calc_p(trans_cum_matrix)
+
+def validate_fk(model, data, controllers, tol=2e-3):
+  site_id = model.site("attachment_site").id
+  wrist_id = model.body("wrist_3_link").id
+
+  rng = np.random.default_rng(0)
+  saved = np.array(data.qpos[:6]).copy()
+  samples = [saved] + [rng.uniform(-2.0, 2.0, 6) for _ in range(4)]
+
+  worst = 0.0
+  print("FK validation (DH flange vs MuJoCo attachment_site):")
+  for q in samples:
+    data.qpos[:6] = q
+    mujoco.mj_forward(model, data)
+
+    p_dh = fk_world_pos(controllers, q)
+    r_site = np.linalg.norm(p_dh - data.site_xpos[site_id])
+    r_wrist = np.linalg.norm(p_dh - data.xpos[wrist_id])
+    worst = max(worst, r_site)
+    print(f"  q={np.round(q, 3)}  site_resid={r_site:.2e} m"
+          f"  (wrist_3_resid={r_wrist:.2e} m)")
+
+  # restore the state
+  data.qpos[:6] = saved
+  mujoco.mj_forward(model, data)
+
+  assert worst < tol, (
+      f"FK/MuJoCo mismatch {worst:.4e} m exceeds tol {tol:.1e} m ")
+  print(f"  PASS: max flange residual {worst:.2e} m < tol {tol:.1e} m\n")
 
 def fk_trans_matrix(elem):
   trans_cum_matrix = np.array([[1,0,0,0],
@@ -129,10 +182,10 @@ def calc_e_mag(e):
 
 def mujoco_move(dt, viewer, controllers, model, data, init_theta):
   for idx, controller in enumerate(controllers):
-    data.ctrl[idx] = data.qpos[idx]
+    #data.ctrl[idx] = data.qpos[idx]
     data.qfrc_applied[idx] = controller.compute(
         dt, init_theta[idx], data.qpos[idx], data.qvel[idx]
-    ) + data.qfrc_bias[idx]
+    ) #+ data.qfrc_bias[idx]
 
   #update simulation
   mujoco.mj_step(model, data)

@@ -14,6 +14,11 @@
     <texture type="2d" name="groundplane" builtin="checker" mark="edge" rgb1="0.2 0.3 0.4" rgb2="0.1 0.2 0.3"
       markrgb="0.8 0.8 0.8" width="300" height="300"/>
     <material name="groundplane" texture="groundplane" texuniform="true" texrepeat="5 5" reflectance="0.2"/>
+    <material name="brown_glass"
+            rgba="0.32 0.16 0.04 0.55"   
+            specular="0.9"                
+            shininess="0.85"              
+            reflectance="0.3"/>  
     <mesh name="bottle_mesh" file="../Robot_Bottle_description/meshes/base_link.stl" scale="0.0001 0.0001 0.0001"/>
   </asset>
 
@@ -22,7 +27,8 @@
     <geom name="floor" size="0 0 0.05" type="plane" material="groundplane"/>
 
     <body name="bottle_target" pos="0.5 0.2 0.0">
-      <geom type="mesh" mesh="bottle_mesh"/>
+      <freejoint/>
+      <geom type="mesh" mesh="bottle_mesh" material="brown_glass" mass="0.4"/>
     </body>
   </worldbody>
 </mujoco>

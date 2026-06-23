@@ -169,7 +169,7 @@ C(q,q̇)q̇: The whole term represents the centrifugal force: the outward pull. 
 
 g(q): The Gravity Vector. This term represents exactly how much torque is pulling down on each joint due to the weight of the robot's own limbs at that exact posture.
 
-Adding this term to applied torque showed much better performance when Ki = 0: solving both the steady state error and overshoot problems. In this particular configuration, Ki being equal to 0 having the best performance makes sense because the qfrc_bias is compensating for gravity, the exact reason the Ki gain was needed to fix steady state error.
+Adding this term to applied torque showed much better performance when Ki = 0: solving both the steady state error and overshoot problems. In this particular configuration, Ki being equal to 0 having the best performance makes sense because the `qfrc_bias` is compensating for gravity, the exact reason the Ki gain was needed to fix steady state error. I chose not to use `qfrc_bias` throughout the rest of the tasks as I wanted to explore the effects and solutions of PID tuning without this term.
 
 ## Conclusion
 
