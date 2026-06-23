@@ -5,6 +5,11 @@ import mujoco.viewer
 import numpy as np
 import math
 
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D  # noqa: F401  (registers 3d projection)
+
 from jacobian_controllers import PIDController
 
 SCENE_XML = os.path.join(os.path.dirname(__file__), "..", "..", "models", "universal_robots_ur5e", "scene.xml")
@@ -25,16 +30,21 @@ def main():
     target = bottle_grasp_target(model, data, height_frac=1.0)
     e_mag = 100
 
+    site_id = model.site("attachment_site").id
+    path_log = []
+    path_saved = False
+
     with mujoco.viewer.launch_passive(model, data) as viewer:
         while viewer.is_running():
 
-          mujoco_move(dt, viewer, controllers, model, data, init_theta)
+          mujoco_move(dt, viewer, controllers, model, data, init_theta, site_id, path_log)
 
-          if (data.time > 6):
+          if (data.time > 6) and not path_saved:
+            path_log.clear()
             while (e_mag > 0.001):
 
               for _ in range(10):
-                mujoco_move(dt, viewer, controllers, model, data, init_theta)
+                mujoco_move(dt, viewer, controllers, model, data, init_theta, site_id, path_log)
 
               elem_steps = []
               for idx in range(6):
@@ -65,6 +75,10 @@ def main():
 
               init_theta = np.add(init_theta, delta_theta)
 
+            # IK converged (e_mag <= 0.001) -- save the path once
+            plot_ee_path(path_log, target)
+            path_saved = True
+
 def bottle_grasp_target(model, data, height_frac=1.0):
   body_id = model.body("bottle_target").id
   geom_id = None
@@ -73,7 +87,7 @@ def bottle_grasp_target(model, data, height_frac=1.0):
       geom_id = g
       break
 
-  # local AABB: center (cx,cy,cz) + half-sizes (_,_,hz)
+  # local
   cx, cy, cz, _, _, hz = model.geom_aabb[geom_id]
   bottom_local = np.array([cx, cy, cz - hz])
   top_local    = np.array([cx, cy, cz + hz])
@@ -180,7 +194,7 @@ def calc_e_mag(e):
 
    return e_mag
 
-def mujoco_move(dt, viewer, controllers, model, data, init_theta):
+def mujoco_move(dt, viewer, controllers, model, data, init_theta, site_id=None, path_log=None):
   for idx, controller in enumerate(controllers):
     #data.ctrl[idx] = data.qpos[idx]
     data.qfrc_applied[idx] = controller.compute(
@@ -189,7 +203,66 @@ def mujoco_move(dt, viewer, controllers, model, data, init_theta):
 
   #update simulation
   mujoco.mj_step(model, data)
+
+  # record the end-effector world position and drop a live breadcrumb
+  if site_id is not None and path_log is not None:
+    ee = data.site_xpos[site_id].copy()
+    path_log.append(ee)
+    if len(path_log) % 25 == 0:
+      add_trace_point(viewer, ee)
+
   viewer.sync()
+
+def add_trace_point(viewer, pos, rgba=(1.0, 0.2, 0.2, 1.0), radius=0.004):
+  """live trail."""
+  scn = viewer.user_scn
+  if scn.ngeom >= scn.maxgeom:
+    return
+  mujoco.mjv_initGeom(
+      scn.geoms[scn.ngeom],
+      type=mujoco.mjtGeom.mjGEOM_SPHERE,
+      size=np.array([radius, 0.0, 0.0]),
+      pos=np.asarray(pos, dtype=float),
+      mat=np.eye(3).flatten(),
+      rgba=np.array(rgba, dtype=float),
+  )
+  scn.ngeom += 1
+
+def plot_ee_path(path_log, target, out_path=None):
+  """Save a 3D view as png"""
+  if not path_log:
+    print("plot_ee_path: no path recorded, skipping")
+    return
+
+  path = np.asarray(path_log)
+  target = np.asarray(target)
+  if out_path is None:
+    out_path = os.path.join(os.path.dirname(__file__), "ee_path.png")
+
+  fig = plt.figure(figsize=(12, 9))
+
+  ax = fig.add_subplot(2, 2, 1, projection='3d')
+  ax.plot(path[:, 0], path[:, 1], path[:, 2], color='tab:blue', lw=1.2, label='EE path')
+  ax.scatter(*path[0], color='green', s=40, label='start')
+  ax.scatter(*path[-1], color='orange', s=40, label='end')
+  ax.scatter(*target, color='red', marker='*', s=140, label='target')
+  ax.set_xlabel('X [m]'); ax.set_ylabel('Y [m]'); ax.set_zlabel('Z [m]')
+  ax.set_title('End-effector Cartesian path (3D)')
+  ax.legend(loc='upper left', fontsize=8)
+
+  for k, ((i, j), name) in enumerate([((0, 1), 'XY'), ((0, 2), 'XZ'), ((1, 2), 'YZ')]):
+    a = fig.add_subplot(2, 2, k + 2)
+    a.plot(path[:, i], path[:, j], color='tab:blue', lw=1.2)
+    a.scatter(path[0, i], path[0, j], color='green', s=30, label='start')
+    a.scatter(path[-1, i], path[-1, j], color='orange', s=30, label='end')
+    a.scatter(target[i], target[j], color='red', marker='*', s=140, label='target')
+    a.set_xlabel(f'{name[0]} [m]'); a.set_ylabel(f'{name[1]} [m]')
+    a.set_title(f'{name} projection'); a.axis('equal'); a.grid(True, alpha=0.3)
+
+  fig.tight_layout()
+  fig.savefig(out_path, dpi=130)
+  plt.close(fig)
+  print(f"saved EE path plot -> {out_path}  ({len(path)} points)")
 
     
 
