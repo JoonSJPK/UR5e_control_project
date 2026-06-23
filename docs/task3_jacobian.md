@@ -384,3 +384,9 @@ Because the error now has two parts in two different units, the stopping test ch
 ```
  
 When both are satisfied, the current $\theta$ places the end-effector at the full target pose. Otherwise the loop returns to Step 1 and re-linearizes at the updated configuration.
+
+## Full Pose (6x6) Demo
+
+The full 6×6 Jacobian driving the end-effector to the target pose (position **and** orientation):
+
+![Task 3 Full Pose Demo](task3_images/task3_6x6_demo.gif)
