@@ -259,7 +259,7 @@ R_{err} = R_d\,R_e^{\mathsf{T}} \qquad [3 \times 3]
 $R_{err}$ is then converted into a rotation vector (axis × angle), which is the angular analog of $p_{target} - p_e$:
  
 ```math
-\phi = \arccos\!\left(\frac{\operatorname{tr}(R_{err}) - 1}{2}\right)
+\phi = \arccos\!\left(\frac{\mathrm{tr}(R_{err}) - 1}{2}\right)
 ```
  
 ```math
@@ -370,7 +370,7 @@ y = A^{-1}\,e \qquad [6 \times 6][6 \times 1] \Rightarrow [6 \times 1]
  
 Because $J$ is now square ($6 \times 6$), at a non-singular configuration the damped pseudoinverse reduces to the plain inverse $\Delta\theta = J^{-1} e$. I keep the $\lambda^2 I$ damping anyway, since a full-pose target makes the arm pass near wrist and shoulder singularities more often, and the damping is what keeps $\Delta\theta$ bounded when it does.
  
-### Step 5 (Convergence) — check both parts
+### Step 5 Convergence
  
 Because the error now has two parts in two different units, the stopping test checks each separately:
  
