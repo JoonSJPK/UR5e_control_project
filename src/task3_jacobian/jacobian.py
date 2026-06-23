@@ -19,7 +19,7 @@ def main():
     data = mujoco.MjData(model)
     dt = model.opt.timestep
 
-    # initial joint position in rad — standard UR5e ready pose
+    # initial joint position
     init_theta  = [-1.5708, -1.5708, 1.5708, -1.5708, -1.5708, 0]
     controllers = []
     for idx in range(6):
@@ -27,12 +27,14 @@ def main():
 
     mujoco.mj_forward(model, data)
     validate_fk(model, data, controllers)
-    target_p = bottle_grasp_target(model, data, height_frac=1.0)
-    target_r = np.array([[ 1.0,  0.0,  0.0],
-                         [ 0.0, -1.0,  0.0],
-                         [ 0.0,  0.0, -1.0]])
+    p_target = bottle_grasp_target(model, data, height_frac=1.0)
+    R_d = np.array([[ 1.0,  0.0,  0.0],
+                    [ 0.0, -1.0,  0.0],
+                    [ 0.0,  0.0, -1.0]])
     e_p_mag = 100
-    e_r_mag = 100
+    e_o_mag = 100
+    pos_tol = 0.001
+    rot_tol = 0.001
 
     site_id = model.site("attachment_site").id
     path_log = []
@@ -45,7 +47,7 @@ def main():
 
           if (data.time > 6) and not path_saved:
             path_log.clear()
-            while (e_p_mag > 0.001 or e_r_mag > 0.001):
+            while (e_p_mag > pos_tol or e_o_mag > rot_tol):
 
               for _ in range(10):
                 mujoco_move(dt, viewer, controllers, model, data, init_theta, site_id, path_log)
@@ -57,17 +59,17 @@ def main():
 
               trans_cum_matrix, trans_matrix, z, p = fk_trans_matrix(elem_steps)
 
-              e_p = calc_error_p(target_p, trans_cum_matrix)
-              e_r = calc_error_r(target_r, trans_cum_matrix)
+              e_p = calc_error_p(p_target, trans_cum_matrix)
+              e_o = calc_error_o(R_d, trans_cum_matrix)
               e_p_mag = calc_e_mag(e_p)
-              e_r_mag = calc_e_mag(e_r)
-              print(f"e_p={e_p_mag:.4f}  e_r={e_r_mag:.4f}")
+              e_o_mag = calc_e_mag(e_o)
+              print(f"e_p={e_p_mag:.4f}  e_o={e_o_mag:.4f}")
 
-              pe = p[-1]
+              p_e = p[-1]
               jv_transpose = []
               jw_transpose = []
               for idx in range(6):
-                jv_transpose.append(calc_jv_column(z[idx], pe - p[idx]))
+                jv_transpose.append(calc_jv_column(z[idx], p_e - p[idx]))
                 jw_transpose.append(z[idx])
 
               jv = np.array(jv_transpose).T
@@ -75,14 +77,14 @@ def main():
               j = np.vstack([jv, jw]) 
               j_transpose = np.array(j).T
 
-              step_size = 0.01
-              rot_size = 0.01
-              error = [step_size * e_p[0],
-                       step_size * e_p[1], 
-                       step_size * e_p[2],
-                       rot_size * e_r[0],
-                       rot_size * e_r[1], 
-                       rot_size * e_r[2],]
+              K_p = 0.01
+              K_o = 0.01
+              e = [K_p * e_p[0],
+                   K_p * e_p[1],
+                   K_p * e_p[2],
+                   K_o * e_o[0],
+                   K_o * e_o[1],
+                   K_o * e_o[2],]
               identity = np.array([[1,0,0,0,0,0],
                                    [0,1,0,0,0,0],
                                    [0,0,1,0,0,0],
@@ -91,11 +93,11 @@ def main():
                                    [0,0,0,0,0,1],])
               lambda_squared = 0.0025 ** 2
 
-              delta_theta = (j_transpose @ np.linalg.inv((j @ j_transpose) + (lambda_squared * identity))) @ error
+              delta_theta = (j_transpose @ np.linalg.inv((j @ j_transpose) + (lambda_squared * identity))) @ e
 
               init_theta = np.add(init_theta, delta_theta)
 
-            plot_ee_path(path_log, target_p)
+            plot_ee_path(path_log, p_target)
             path_saved = True
 
 def bottle_grasp_target(model, data, height_frac=1.0):
@@ -196,41 +198,40 @@ def calc_r(matrix):
    r32 = matrix[2][1]
    r33 = matrix[2][2]
 
-   r = np.array([[r11, r12, r13],
-                 [r21, r22, r23],
-                 [r31, r32, r33],])
-   return r
+   R_e = np.array([[r11, r12, r13],
+                   [r21, r22, r23],
+                   [r31, r32, r33],])
+   return R_e
 
-def calc_error_p(tgt, matrix): 
-   pe = calc_p(matrix)
+def calc_error_p(p_target, matrix):
+   p_e = calc_p(matrix)
 
-   ex = tgt[0] - pe[0]
-   ey = tgt[1] - pe[1]
-   ez = tgt[2] - pe[2]
+   ex = p_target[0] - p_e[0]
+   ey = p_target[1] - p_e[1]
+   ez = p_target[2] - p_e[2]
 
    e_p = np.array([ex, ey, ez])
 
    return e_p
 
-def calc_error_r(tgt, matrix):
+def calc_error_o(R_d, matrix):
+   R_e = calc_r(matrix)
+   R_err = np.array(R_d) @ np.array(R_e).T
 
-   r = calc_r(matrix)
-   re = np.array(tgt) @ np.array(r).T
+   cos_phi = (np.trace(R_err) - 1.0) / 2.0
+   cos_phi = np.clip(cos_phi, -1.0, 1.0)
+   phi = np.arccos(cos_phi)
 
-   cos_theta = (np.trace(re) - 1.0) / 2.0
-   cos_theta = np.clip(cos_theta, -1.0, 1.0)
-   e_theta = np.arccos(cos_theta)
+   axis = np.array([R_err[2, 1] - R_err[1, 2],
+                    R_err[0, 2] - R_err[2, 0],
+                    R_err[1, 0] - R_err[0, 1]])
 
-   axis = np.array([re[2, 1] - re[1, 2],
-                    re[0, 2] - re[2, 0],
-                    re[1, 0] - re[0, 1]])
-
-   sin_theta = np.sin(e_theta)
-   if abs(sin_theta) < 1e-9:
+   sin_phi = np.sin(phi)
+   if abs(sin_phi) < 1e-9:                
       return np.zeros(3)
 
-   e_r = (e_theta / (2.0 * sin_theta)) * axis
-   return e_r
+   e_o = (phi / (2.0 * sin_phi)) * axis
+   return e_o
 
 def calc_z_axis(matrix):
    z1 = matrix[0][2]
@@ -253,15 +254,14 @@ def calc_e_mag(e):
 
 def mujoco_move(dt, viewer, controllers, model, data, init_theta, site_id=None, path_log=None):
   for idx, controller in enumerate(controllers):
-    #data.ctrl[idx] = data.qpos[idx]
     data.qfrc_applied[idx] = controller.compute(
         dt, init_theta[idx], data.qpos[idx], data.qvel[idx]
-    ) #+ data.qfrc_bias[idx]
+    )
 
   #update simulation
   mujoco.mj_step(model, data)
 
-  # record the end-effector world position and drop a live breadcrumb
+  # record the end effector world position and drop a live breadcrumb
   if site_id is not None and path_log is not None:
     ee = data.site_xpos[site_id].copy()
     path_log.append(ee)

@@ -224,7 +224,160 @@ The damped version (with $\lambda^2 I$) is the practical form used in code:
 ```math
 \Delta\theta = J^{\mathsf{T}} (J J^{\mathsf{T}} + \lambda^2 I)^{-1}\,\Delta p
 ```
- 
- 
- 
 ![Task 3 Demo](task3_images/task3_demo.gif)
+
+## Full Jacobian (6x6) Implementation
+ 
+As mentioned above, the Jacobian matrix used was only a 3x6 Jacobian which only contains information needed for position, not orientation. The following are the differences and additions I made to the algorithm to support the full 6x6 Jacobian matrix.
+ 
+Moving from the $3 \times 6$ to the full $6 \times 6$ Jacobian adds **orientation** control, so the end-effector is driven to a full target *pose* (position **and** orientation) instead of just a target point. This changes three things: the error becomes a 6-vector, the Jacobian gains three orientation rows, and the damped least-squares solve grows from $3 \times 3$ to $6 \times 6$. The steps below describe only the differences and additions from the position-only version above.
+ 
+### Step 1 (Forward Kinematics) — addition
+ 
+No new computation is needed here. The orientation $R_e$ is the top-left $3 \times 3$ block of $T_0^{\,6}$, which was already produced in the original Step 1 but went unused. For the full Jacobian I now keep it:
+ 
+```math
+R_e = T_0^{\,6}[\,0\!:\!3,\;0\!:\!3\,]
+```
+ 
+Its three columns are the end-effector frame's $\mathbf{x}$, $\mathbf{y}$, $\mathbf{z}$ axes expressed in the base frame.
+ 
+### Step 2 (Error) — now a 6-vector pose error
+ 
+The error from the original Step 2 becomes the **position** part of a larger error, renamed $e_p$:
+ 
+```math
+e_p = p_{target} - p_e \qquad [3 \times 1]
+```
+ 
+A second **orientation** part $e_o$ is added. This requires a target orientation $R_d$ (the desired tool orientation, supplied as part of the target pose). Because orientations cannot be subtracted, I first compute the rotation that carries the current orientation onto the desired one:
+ 
+```math
+R_{err} = R_d\,R_e^{\mathsf{T}} \qquad [3 \times 3]
+```
+ 
+$R_{err}$ is then converted into a rotation vector (axis × angle), which is the angular analog of $p_{target} - p_e$:
+ 
+```math
+\phi = \arccos\!\left(\frac{\operatorname{tr}(R_{err}) - 1}{2}\right)
+```
+ 
+```math
+e_o = \frac{\phi}{2\sin\phi}
+\begin{bmatrix}
+R_{err}[3,2] - R_{err}[2,3] \\
+R_{err}[1,3] - R_{err}[3,1] \\
+R_{err}[2,1] - R_{err}[1,2]
+\end{bmatrix}
+\qquad [3 \times 1]
+```
+ 
+The position and orientation parts are stacked into a single $6 \times 1$ pose error, each scaled by its own gain:
+ 
+```math
+e =
+\begin{bmatrix}
+K_p\,e_p \\
+K_o\,e_o
+\end{bmatrix}
+\qquad [6 \times 1]
+```
+ 
+The two gains are needed because $e_p$ is in **meters** and $e_o$ is in **radians**; $K_p$ and $K_o$ weight the two so neither dominates the step. ($K_p$ plays the same role the step size $\alpha = 0.5$ did in the position-only version.)
+ 
+### Step 3 (Jacobian) — add the orientation rows
+ 
+The original $J_v$ becomes the **top three rows**. I add a second block $J_\omega$ (the angular-velocity Jacobian) whose columns are simply the joint axes:
+ 
+```math
+\text{column}_i \;=\; \mathbf{z}_{i-1}
+```
+ 
+```math
+J_\omega =
+\begin{bmatrix}
+\mathbf{z}_0 & \cdots & \mathbf{z}_5
+\end{bmatrix}
+\qquad [3 \times 6]
+```
+ 
+Stacking the linear and angular blocks gives the full Jacobian, where each column is the complete twist (slide stacked on tumble) produced by spinning that joint:
+ 
+```math
+\text{column}_i \;=\;
+\begin{bmatrix}
+\mathbf{z}_{i-1} \times (\mathbf{p}_e - \mathbf{p}_{i-1}) \\
+\mathbf{z}_{i-1}
+\end{bmatrix}
+```
+ 
+```math
+J =
+\begin{bmatrix}
+J_v \\
+J_\omega
+\end{bmatrix}
+\qquad [6 \times 6]
+```
+ 
+This $J$ now maps joint rates to the full end-effector twist (linear velocity $v$ stacked on angular velocity $\omega$):
+ 
+```math
+\begin{bmatrix} v \\ \omega \end{bmatrix} = J\,\dot{\theta}
+\qquad [6 \times 1] = [6 \times 6][6 \times 1]
+```
+ 
+## Step 4: Damped Least-Squares Solve (6x6) — same formula, larger dimensions
+ 
+The solve is structurally identical to the position-only version; only the dimensions grow.
+ 
+**a) Inputs**
+ 
+$J$ is now $6 \times 6$, and the task-space error is the full $6 \times 1$ pose error from Step 2:
+ 
+```math
+e =
+\begin{bmatrix}
+K_p\,e_p \\
+K_o\,e_o
+\end{bmatrix}
+\qquad [6 \times 1]
+```
+ 
+**b) Form the damped normal matrix**
+ 
+```math
+A = J\,J^{\mathsf{T}} + \lambda^2 I \qquad [\,6 \times 6\,], \quad \lambda^2 \approx 0.0025
+```
+ 
+**c) Solve for $y$**
+ 
+```math
+y = A^{-1}\,e \qquad [6 \times 6][6 \times 1] \Rightarrow [6 \times 1]
+```
+ 
+**d) Map back to joint space**
+ 
+```math
+\Delta\theta = J^{\mathsf{T}}\,y \qquad [6 \times 6][6 \times 1] \Rightarrow [6 \times 1]
+```
+ 
+**e) Update the joint angles**
+ 
+```math
+\theta_{\text{new}} = \theta_{\text{old}} + \Delta\theta
+```
+ 
+Because $J$ is now square ($6 \times 6$), at a non-singular configuration the damped pseudoinverse reduces to the plain inverse $\Delta\theta = J^{-1} e$. I keep the $\lambda^2 I$ damping anyway, since a full-pose target makes the arm pass near wrist and shoulder singularities more often, and the damping is what keeps $\Delta\theta$ bounded when it does.
+ 
+### Step 5 (Convergence) — check both parts
+ 
+Because the error now has two parts in two different units, the stopping test checks each separately:
+ 
+```math
+\lVert e_p \rVert < \text{pos\_tol}
+\quad\text{and}\quad
+\lVert e_o \rVert < \text{rot\_tol}
+```
+ 
+When both are satisfied, the current $\theta$ places the end-effector at the full target pose. Otherwise the loop returns to Step 1 and re-linearizes at the updated configuration.
