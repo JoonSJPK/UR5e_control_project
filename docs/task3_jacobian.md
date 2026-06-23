@@ -28,7 +28,7 @@ This information what gathered from a UR5e datasheet and organize in a table. Fr
 | 5 | θ4 | 0.0997 | 0 | −90° |
 | 6 | θ5 | 0.0996 | 0 | 0° |
  
-[UR5e DH Parameters — Universal Robots](https://www.universal-robots.com/articles/ur/application-installation/dh-parameters-for-calculations-of-kinematics-and-dynamics/)
+[UR5e DH Parameters: Universal Robots](https://www.universal-robots.com/articles/ur/application-installation/dh-parameters-for-calculations-of-kinematics-and-dynamics/)
  
 ### Elementary Transformation
  
@@ -42,25 +42,25 @@ T_{i-1}^{\,i} = \text{Rot}_z(\theta)\;\text{Trans}_z(d)\;\text{Trans}_x(a)\;\tex
  
 The four matrices are:
  
-**Rotₓ z(θ)** — rotation about z by the joint angle:
+**Rotₓ z(θ)**: rotation about z by the joint angle:
  
 ```math
 \text{Rot}_z(\theta)=\begin{bmatrix} C\theta & -S\theta & 0 & 0\\ S\theta & C\theta & 0 & 0\\ 0 & 0 & 1 & 0\\ 0 & 0 & 0 & 1 \end{bmatrix}
 ```
  
-**Transz(d)** — translation along z by the link offset:
+**Transz(d)**: translation along z by the link offset:
  
 ```math
 \text{Trans}_z(d)=\begin{bmatrix} 1 & 0 & 0 & 0\\ 0 & 1 & 0 & 0\\ 0 & 0 & 1 & d\\ 0 & 0 & 0 & 1 \end{bmatrix}
 ```
  
-**Transₓ(a)** — translation along x by the link length:
+**Transₓ(a)**: translation along x by the link length:
  
 ```math
 \text{Trans}_x(a)=\begin{bmatrix} 1 & 0 & 0 & a\\ 0 & 1 & 0 & 0\\ 0 & 0 & 1 & 0\\ 0 & 0 & 0 & 1 \end{bmatrix}
 ```
  
-**Rotₓ(α)** — rotatation about x by the link twist:
+**Rotₓ(α)**: rotatation about x by the link twist:
  
 ```math
 \text{Rot}_x(\alpha)=\begin{bmatrix} 1 & 0 & 0 & 0\\ 0 & C\alpha & -S\alpha & 0\\ 0 & S\alpha & C\alpha & 0\\ 0 & 0 & 0 & 1 \end{bmatrix}
@@ -232,7 +232,7 @@ As mentioned above, the Jacobian matrix used was only a 3x6 Jacobian which only 
  
 Moving from the $3 \times 6$ to the full $6 \times 6$ Jacobian adds **orientation** control, so the end-effector is driven to a full target *pose* (position **and** orientation) instead of just a target point. This changes three things: the error becomes a 6-vector, the Jacobian gains three orientation rows, and the damped least-squares solve grows from $3 \times 3$ to $6 \times 6$. The steps below describe only the differences and additions from the position-only version above.
  
-### Step 1 (Forward Kinematics) — addition
+### Step 1 (Forward Kinematics): addition
  
 No new computation is needed here. The orientation $R_e$ is the top-left $3 \times 3$ block of $T_0^{\,6}$, which was already produced in the original Step 1 but went unused. For the full Jacobian I now keep it:
  
@@ -242,7 +242,7 @@ R_e = T_0^{\,6}[\,0\!:\!3,\;0\!:\!3\,]
  
 Its three columns are the end-effector frame's $\mathbf{x}$, $\mathbf{y}$, $\mathbf{z}$ axes expressed in the base frame.
  
-### Step 2 (Error) — now a 6-vector pose error
+### Step 2 (Error): now a 6-vector pose error
  
 The error from the original Step 2 becomes the **position** part of a larger error, renamed $e_p$:
  
@@ -285,7 +285,7 @@ K_o\,e_o
  
 The two gains are needed because $e_p$ is in **meters** and $e_o$ is in **radians**; $K_p$ and $K_o$ weight the two so neither dominates the step. ($K_p$ plays the same role the step size $\alpha = 0.5$ did in the position-only version.)
  
-### Step 3 (Jacobian) — add the orientation rows
+### Step 3 (Jacobian): add the orientation rows
  
 The original $J_v$ becomes the **top three rows**. I add a second block $J_\omega$ (the angular-velocity Jacobian) whose columns are simply the joint axes:
  
@@ -327,7 +327,7 @@ This $J$ now maps joint rates to the full end-effector twist (linear velocity $v
 \qquad [6 \times 1] = [6 \times 6][6 \times 1]
 ```
  
-## Step 4: Damped Least-Squares Solve (6x6) — same formula, larger dimensions
+## Step 4: Damped Least-Squares Solve (6x6): same formula, larger dimensions
  
 The solve is structurally identical to the position-only version; only the dimensions grow.
  

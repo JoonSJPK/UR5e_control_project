@@ -31,74 +31,65 @@ def main():
     R_d = np.array([[ 1.0,  0.0,  0.0],
                     [ 0.0, -1.0,  0.0],
                     [ 0.0,  0.0, -1.0]])
-    e_p_mag = 100
-    e_o_mag = 100
     pos_tol = 0.001
     rot_tol = 0.001
 
     site_id = model.site("attachment_site").id
     path_log = []
     path_saved = False
+    ik_active = False
 
     with mujoco.viewer.launch_passive(model, data) as viewer:
         while viewer.is_running():
 
+          # one resolved-rate IK update per simulation step (non-blocking)
+          if (data.time > 6) and not path_saved:
+            if not ik_active:
+              path_log.clear()          # path starts at the IK onset pose
+              ik_active = True
+
+            delta_theta, e_p_mag, e_o_mag = ik_step(controllers, data, p_target, R_d)
+
+            init_theta = np.add(init_theta, delta_theta)
+            print(f"e_p={e_p_mag:.4f}  e_o={e_o_mag:.4f}")
+
+            if e_p_mag < pos_tol and e_o_mag < rot_tol:
+              plot_ee_path(path_log, p_target)
+              path_saved = True
+
           mujoco_move(dt, viewer, controllers, model, data, init_theta, site_id, path_log)
 
-          if (data.time > 6) and not path_saved:
-            path_log.clear()
-            while (e_p_mag > pos_tol or e_o_mag > rot_tol):
+def ik_step(controllers, data, p_target, R_d, K_p=0.01, K_o=0.01, lambda_squared=0.0025 ** 2):
+  elem_steps = []
+  for idx in range(6):
+    controllers[idx].theta = data.qpos[idx]
+    elem_steps.append(controllers[idx].fk_elem_step())
 
-              for _ in range(10):
-                mujoco_move(dt, viewer, controllers, model, data, init_theta, site_id, path_log)
+  trans_cum_matrix, trans_matrix, z, p = fk_trans_matrix(elem_steps)
 
-              elem_steps = []
-              for idx in range(6):
-                controllers[idx].theta = data.qpos[idx]
-                elem_steps.append(controllers[idx].fk_elem_step())
+  e_p = calc_error_p(p_target, trans_cum_matrix)
+  e_o = calc_error_o(R_d, trans_cum_matrix)
+  e_p_mag = calc_e_mag(e_p)
+  e_o_mag = calc_e_mag(e_o)
 
-              trans_cum_matrix, trans_matrix, z, p = fk_trans_matrix(elem_steps)
+  p_e = p[-1]
+  jv_transpose = []
+  jw_transpose = []
+  for idx in range(6):
+    jv_transpose.append(calc_jv_column(z[idx], p_e - p[idx]))
+    jw_transpose.append(z[idx])
 
-              e_p = calc_error_p(p_target, trans_cum_matrix)
-              e_o = calc_error_o(R_d, trans_cum_matrix)
-              e_p_mag = calc_e_mag(e_p)
-              e_o_mag = calc_e_mag(e_o)
-              print(f"e_p={e_p_mag:.4f}  e_o={e_o_mag:.4f}")
+  jv = np.array(jv_transpose).T
+  jw = np.array(jw_transpose).T
+  j = np.vstack([jv, jw])
+  j_transpose = j.T
 
-              p_e = p[-1]
-              jv_transpose = []
-              jw_transpose = []
-              for idx in range(6):
-                jv_transpose.append(calc_jv_column(z[idx], p_e - p[idx]))
-                jw_transpose.append(z[idx])
+  e = [K_p * e_p[0], K_p * e_p[1], K_p * e_p[2],
+       K_o * e_o[0], K_o * e_o[1], K_o * e_o[2]]
+  identity = np.eye(6)
+  delta_theta = (j_transpose @ np.linalg.inv((j @ j_transpose) + (lambda_squared * identity))) @ e
 
-              jv = np.array(jv_transpose).T
-              jw = np.array(jw_transpose).T
-              j = np.vstack([jv, jw]) 
-              j_transpose = np.array(j).T
-
-              K_p = 0.01
-              K_o = 0.01
-              e = [K_p * e_p[0],
-                   K_p * e_p[1],
-                   K_p * e_p[2],
-                   K_o * e_o[0],
-                   K_o * e_o[1],
-                   K_o * e_o[2],]
-              identity = np.array([[1,0,0,0,0,0],
-                                   [0,1,0,0,0,0],
-                                   [0,0,1,0,0,0],
-                                   [0,0,0,1,0,0],
-                                   [0,0,0,0,1,0],
-                                   [0,0,0,0,0,1],])
-              lambda_squared = 0.0025 ** 2
-
-              delta_theta = (j_transpose @ np.linalg.inv((j @ j_transpose) + (lambda_squared * identity))) @ e
-
-              init_theta = np.add(init_theta, delta_theta)
-
-            plot_ee_path(path_log, p_target)
-            path_saved = True
+  return delta_theta, e_p_mag, e_o_mag
 
 def bottle_grasp_target(model, data, height_frac=1.0):
   body_id = model.body("bottle_target").id
