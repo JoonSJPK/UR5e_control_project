@@ -29,6 +29,13 @@
       </default>
       <site size="0.001" rgba="0.5 0.5 0.5 0.3" group="4"/>
     </default>
+
+    <!-- Robotiq 3-Finger gripper: visual/kinematic only (contype/conaffinity 0).
+         Finger joints are passive, held near the open pose by per-joint springs. -->
+    <default class="robotiq">
+      <joint axis="0 0 1" damping="0.2" armature="0.01" stiffness="1"/>
+      <geom type="mesh" contype="0" conaffinity="0" group="2" material="robotiq_gray"/>
+    </default>
   </default>
 
   <asset>
@@ -57,6 +64,14 @@
     <mesh file="wrist2_1.obj"/>
     <mesh file="wrist2_2.obj"/>
     <mesh file="wrist3.obj"/>
+
+    <!-- Robotiq 3-Finger gripper (STL meshes from webots_ros2 robotiq_3f_gripper_visualization) -->
+    <material class="ur5e" name="robotiq_gray" rgba="0.2 0.2 0.2 1"/>
+    <mesh name="rq_palm"  file="../robotiq_3f_assets/palm.STL"/>
+    <mesh name="rq_link0" file="../robotiq_3f_assets/link_0.STL"/>
+    <mesh name="rq_link1" file="../robotiq_3f_assets/link_1.STL"/>
+    <mesh name="rq_link2" file="../robotiq_3f_assets/link_2.STL"/>
+    <mesh name="rq_link3" file="../robotiq_3f_assets/link_3.STL"/>
   </asset>
 
   <worldbody>
@@ -112,6 +127,64 @@
                   <geom material="linkgray" mesh="wrist3" class="visual"/>
                   <geom class="eef_collision" pos="0 0.08 0" quat="1 1 0 0" size="0.04 0.02"/>
                   <site name="attachment_site" pos="0 0.1 0" quat="-1 1 0 0"/>
+
+                  <!-- Robotiq 3-Finger gripper mounted at the flange (45 mm past attachment_site) -->
+                  <body name="rq_palm" pos="0 0.145 0" quat="1 0 0 0" childclass="robotiq">
+                    <geom mesh="rq_palm"/>
+
+                    <!-- finger 1 -->
+                    <body name="f1_link0" pos="-0.0455 0.0214 0.036" quat="0 0.706825 0.707388 0">
+                      <joint name="palm_finger_1_joint" axis="0 1 0" range="-0.1784 0.192" springref="0"/>
+                      <geom mesh="rq_link0" pos="0.02 0 0"/>
+                      <body name="f1_link1" pos="0.02 0 0">
+                        <joint name="finger_1_joint_1" range="0.0495 1.2218" springref="0.0495"/>
+                        <geom mesh="rq_link1" pos="0.05 -0.028 0" quat="0.96639 0 0 -0.257081"/>
+                        <body name="f1_link2" pos="0.05 -0.028 0" quat="0.96639 0 0 -0.257081">
+                          <joint name="finger_1_joint_2" range="0 1.5708" springref="0"/>
+                          <geom mesh="rq_link2" pos="0.039 0 0.0075"/>
+                          <body name="f1_link3" pos="0.039 0 0">
+                            <joint name="finger_1_joint_3" range="-1.2217 -0.0523" springref="-0.0523"/>
+                            <geom mesh="rq_link3" quat="0.96639 0 0 0.257081"/>
+                          </body>
+                        </body>
+                      </body>
+                    </body>
+
+                    <!-- finger 2 -->
+                    <body name="f2_link0" pos="-0.0455 0.0214 -0.036" quat="0 0.706825 0.707388 0">
+                      <joint name="palm_finger_2_joint" axis="0 1 0" range="-0.192 0.1784" springref="0"/>
+                      <geom mesh="rq_link0" pos="0.02 0 0"/>
+                      <body name="f2_link1" pos="0.02 0 0">
+                        <joint name="finger_2_joint_1" range="0.0495 1.2218" springref="0.0495"/>
+                        <geom mesh="rq_link1" pos="0.05 -0.028 0" quat="0.96639 0 0 -0.257081"/>
+                        <body name="f2_link2" pos="0.05 -0.028 0" quat="0.96639 0 0 -0.257081">
+                          <joint name="finger_2_joint_2" range="0 1.5708" springref="0"/>
+                          <geom mesh="rq_link2" pos="0.039 0 0.0075"/>
+                          <body name="f2_link3" pos="0.039 0 0">
+                            <joint name="finger_2_joint_3" range="-1.2217 -0.0523" springref="-0.0523"/>
+                            <geom mesh="rq_link3" quat="0.96639 0 0 0.257081"/>
+                          </body>
+                        </body>
+                      </body>
+                    </body>
+
+                    <!-- middle finger (fixed to palm, no scissor joint) -->
+                    <body name="fmid_link0" pos="0.0455 0.0214 0" quat="0.707388 0 0 0.706825">
+                      <geom mesh="rq_link0" pos="0.02 0 0"/>
+                      <body name="fmid_link1" pos="0.02 0 0">
+                        <joint name="finger_middle_joint_1" range="0.0495 1.2218" springref="0.0495"/>
+                        <geom mesh="rq_link1" pos="0.05 -0.028 0" quat="0.96639 0 0 -0.257081"/>
+                        <body name="fmid_link2" pos="0.05 -0.028 0" quat="0.96639 0 0 -0.257081">
+                          <joint name="finger_middle_joint_2" range="0 1.5708" springref="0"/>
+                          <geom mesh="rq_link2" pos="0.039 0 0.0075"/>
+                          <body name="fmid_link3" pos="0.039 0 0">
+                            <joint name="finger_middle_joint_3" range="-1.2217 -0.0523" springref="-0.0523"/>
+                            <geom mesh="rq_link3" quat="0.96639 0 0 0.257081"/>
+                          </body>
+                        </body>
+                      </body>
+                    </body>
+                  </body>
                 </body>
               </body>
             </body>
@@ -139,7 +212,4 @@
     <joint name="lock_wrist_3_joint"       joint1="wrist_3_joint"       polycoef="0 1 0 0 0" active="false"/>
   </equality>
 
-  <keyframe>
-    <key name="home" qpos="-1.5708 -1.5708 1.5708 -1.5708 -1.5708 0" ctrl="0 0 0 0 0 0"/>
-  </keyframe>
 </mujoco>

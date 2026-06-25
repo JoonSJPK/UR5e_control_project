@@ -390,3 +390,72 @@ When both are satisfied, the current $\theta$ places the end-effector at the ful
 The full 6×6 Jacobian driving the end-effector to the target pose (position **and** orientation):
 
 ![Task 3 Full Pose Demo](task3_images/task3_6x6_demo.gif)
+
+## Adding a Gripper (Robotiq 3-Finger)
+
+So far the IK drives the bare flange (the `attachment_site` at the tip of `wrist_3_link`) to the target. To let the arm interact with the bottle, I mounted a gripper on the end-effector. The model is the Robotiq 3-Finger gripper, taken from the `webots_ros2` UR5e description.
+
+https://github.com/cyberbotics/webots_ros2/blob/master/webots_ros2_universal_robot/resource/ur5e_with_gripper.urdf
+
+### Sourcing the model
+
+The reference is a URDF (the ROS/Webots description format), while this project is built in MuJoCo's MJCF. The gripper could not be dropped in directly, so it had to be translated into the existing `ur5e.xml`. Two things follow from that translation.
+
+First, MuJoCo only loads OBJ/STL meshes, not the `.dae` visual meshes the URDF references. I downloaded the gripper's `.STL` collision meshes (`palm`, `link_0` to `link_3`) and use them for the visual links as well.
+
+Second, the URDF places every link with roll-pitch-yaw (`rpy`), whereas MJCF places bodies with a quaternion. Each origin has to be converted, which is covered below.
+
+### Where the gripper attaches (the frame chain)
+
+The URDF locates the gripper relative to its own tool frame through a chain of fixed joints:
+
+```math
+\text{wrist\_3\_link} \;\rightarrow\; \text{flange} \;\rightarrow\; \text{tool0} \;\rightarrow\; \text{palm}
+```
+
+The catch is that the URDF's `wrist_3_link` frame is not the same as MuJoCo's, so the chain's numbers cannot be pasted in as they are. Instead I anchor the gripper to the `attachment_site` that already exists on `wrist_3_link`, the same flange the forward kinematics targets. Only the last hop, `tool0` to `palm`, is then needed:
+
+```math
+T_{\text{tool0}}^{\,\text{palm}} = \text{Trans}_z(0.045)\,\text{Rot}_x\!\left(\tfrac{\pi}{2}\right)
+```
+
+so the palm sits 45 mm further along the approach (z) axis. Composing this with the `attachment_site` pose places the palm at
+
+```math
+p_{\text{palm}} = (0,\; 0.145,\; 0)
+```
+
+with identity orientation in the `wrist_3_link` frame.
+
+### Converting URDF origins to MJCF
+
+URDF `rpy` is the extrinsic XYZ rotation:
+
+```math
+R = R_z(\text{yaw})\,R_y(\text{pitch})\,R_x(\text{roll})
+```
+
+For each link and joint origin I build this $R$ and read off the quaternion $(w, x, y, z)$, which is what goes into the MJCF `quat` attribute. For example, finger `link_1`'s origin `rpy = (0, 0, -0.52)` becomes:
+
+```math
+\text{quat} = (0.96639,\; 0,\; 0,\; -0.257081)
+```
+
+### Structure
+
+The gripper is a single `palm` body carrying three fingers, the 2 + 1 Robotiq layout: two fingers that also share a scissor joint at the palm, plus a middle finger fixed to the palm. Each finger is a chain of three links and three revolute joints.
+
+| Joint | Axis | Range (rad) |
+|-------|------|-------------|
+| `palm_finger_{1,2}` (scissor) | y | ±0.18 |
+| `finger_*_joint_1` | z | 0.0495 to 1.2218 |
+| `finger_*_joint_2` | z | 0 to 1.5708 |
+| `finger_*_joint_3` | z | −1.2217 to −0.0523 |
+
+### Keeping it consistent with the IK
+
+The gripper is added as visual and kinematic only. Its geoms use `contype/conaffinity = 0` (no collision), and the finger joints are passive, held near their open pose by a small per-joint spring. This is enough to carry the tool on the arm and visualize it without disturbing the resolved-rate loop, which is what this task is about.
+
+One bookkeeping detail: adding the gripper's joints grows the model's `qpos`, so the old `home` keyframe (written for the six arm joints only) was removed. The controller still indexes the six arm joints, 0 to 5, and the gripper joints are appended after them, so nothing in the IK code changes.
+
+![Task 3 Gripper](task3_images/task3_gripper.png)
