@@ -1,7 +1,8 @@
 <mujoco model="ur5e">
   <compiler angle="radian" meshdir="assets" autolimits="true"/>
 
-  <option integrator="implicitfast"/>
+  <!-- elliptic friction cone + raised impratio for stable gripper grasping contacts -->
+  <option integrator="implicitfast" cone="elliptic" impratio="10"/>
 
   <default>
     <default class="ur5e">
@@ -30,11 +31,36 @@
       <site size="0.001" rgba="0.5 0.5 0.5 0.3" group="4"/>
     </default>
 
-    <!-- Robotiq 3-Finger gripper: visual/kinematic only (contype/conaffinity 0).
-         Finger joints are passive, held near the open pose by per-joint springs. -->
-    <default class="robotiq">
-      <joint axis="0 0 1" damping="0.2" armature="0.01" stiffness="1"/>
-      <geom type="mesh" contype="0" conaffinity="0" group="2" material="robotiq_gray"/>
+    <!-- Franka Panda parallel-jaw gripper. visual/collision classes renamed panda_*
+         to avoid clashing with the ur5e classes of the same name. -->
+    <default class="panda">
+      <material specular="0.5" shininess="0.25"/>
+      <joint armature="0.1" damping="1" axis="0 0 1" range="-2.8973 2.8973"/>
+      <general dyntype="none" biastype="affine" ctrlrange="-2.8973 2.8973" forcerange="-87 87"/>
+      <default class="finger">
+        <joint axis="0 1 0" type="slide" range="0 0.04"/>
+      </default>
+      <default class="panda_visual">
+        <geom type="mesh" contype="0" conaffinity="0" group="2"/>
+      </default>
+      <default class="panda_collision">
+        <geom type="mesh" group="3"/>
+        <default class="fingertip_pad_collision_1">
+          <geom type="box" size="0.0085 0.004 0.0085" pos="0 0.0055 0.0445"/>
+        </default>
+        <default class="fingertip_pad_collision_2">
+          <geom type="box" size="0.003 0.002 0.003" pos="0.0055 0.002 0.05"/>
+        </default>
+        <default class="fingertip_pad_collision_3">
+          <geom type="box" size="0.003 0.002 0.003" pos="-0.0055 0.002 0.05"/>
+        </default>
+        <default class="fingertip_pad_collision_4">
+          <geom type="box" size="0.003 0.002 0.0035" pos="0.0055 0.002 0.0395"/>
+        </default>
+        <default class="fingertip_pad_collision_5">
+          <geom type="box" size="0.003 0.002 0.0035" pos="-0.0055 0.002 0.0395"/>
+        </default>
+      </default>
     </default>
   </default>
 
@@ -65,13 +91,18 @@
     <mesh file="wrist2_2.obj"/>
     <mesh file="wrist3.obj"/>
 
-    <!-- Robotiq 3-Finger gripper (STL meshes from webots_ros2 robotiq_3f_gripper_visualization) -->
-    <material class="ur5e" name="robotiq_gray" rgba="0.2 0.2 0.2 1"/>
-    <mesh name="rq_palm"  file="../robotiq_3f_assets/palm.STL"/>
-    <mesh name="rq_link0" file="../robotiq_3f_assets/link_0.STL"/>
-    <mesh name="rq_link1" file="../robotiq_3f_assets/link_1.STL"/>
-    <mesh name="rq_link2" file="../robotiq_3f_assets/link_2.STL"/>
-    <mesh name="rq_link3" file="../robotiq_3f_assets/link_3.STL"/>
+    <!-- Franka Panda gripper meshes (from mujoco_menagerie franka_emika_panda) -->
+    <material class="panda" name="white" rgba="1 1 1 1"/>
+    <material class="panda" name="off_white" rgba="0.901961 0.921569 0.929412 1"/>
+    <material class="panda" name="panda_black" rgba="0.25 0.25 0.25 1"/>
+    <mesh name="hand_c" file="../panda_assets/hand.stl"/>
+    <mesh file="../panda_assets/hand_0.obj"/>
+    <mesh file="../panda_assets/hand_1.obj"/>
+    <mesh file="../panda_assets/hand_2.obj"/>
+    <mesh file="../panda_assets/hand_3.obj"/>
+    <mesh file="../panda_assets/hand_4.obj"/>
+    <mesh file="../panda_assets/finger_0.obj"/>
+    <mesh file="../panda_assets/finger_1.obj"/>
   </asset>
 
   <worldbody>
@@ -128,63 +159,42 @@
                   <geom class="eef_collision" pos="0 0.08 0" quat="1 1 0 0" size="0.04 0.02"/>
                   <site name="attachment_site" pos="0 0.1 0" quat="-1 1 0 0"/>
 
-                  <!-- Robotiq 3-Finger gripper mounted at the flange (45 mm past attachment_site) -->
-                  <body name="rq_palm" pos="0 0.145 0" quat="1 0 0 0" childclass="robotiq">
-                    <geom mesh="rq_palm"/>
-
-                    <!-- finger 1 -->
-                    <body name="f1_link0" pos="-0.0455 0.0214 0.036" quat="0 0.706825 0.707388 0">
-                      <joint name="palm_finger_1_joint" axis="0 1 0" range="-0.1784 0.192" springref="0"/>
-                      <geom mesh="rq_link0" pos="0.02 0 0"/>
-                      <body name="f1_link1" pos="0.02 0 0">
-                        <joint name="finger_1_joint_1" range="0.0495 1.2218" springref="0.0495"/>
-                        <geom mesh="rq_link1" pos="0.05 -0.028 0" quat="0.96639 0 0 -0.257081"/>
-                        <body name="f1_link2" pos="0.05 -0.028 0" quat="0.96639 0 0 -0.257081">
-                          <joint name="finger_1_joint_2" range="0 1.5708" springref="0"/>
-                          <geom mesh="rq_link2" pos="0.039 0 0.0075"/>
-                          <body name="f1_link3" pos="0.039 0 0">
-                            <joint name="finger_1_joint_3" range="-1.2217 -0.0523" springref="-0.0523"/>
-                            <geom mesh="rq_link3" quat="0.96639 0 0 0.257081"/>
-                          </body>
-                        </body>
+                  <!-- Franka Panda parallel-jaw gripper mounted at the flange -->
+                  <frame pos="0 0.1 0" quat="-1 1 0 0">
+                    <body name="hand" childclass="panda">
+                      <inertial mass="0.73" pos="-0.01 0 0.03" diaginertia="0.001 0.0025 0.0017"/>
+                      <geom mesh="hand_0" material="off_white" class="panda_visual"/>
+                      <geom mesh="hand_1" material="panda_black" class="panda_visual"/>
+                      <geom mesh="hand_2" material="panda_black" class="panda_visual"/>
+                      <geom mesh="hand_3" material="white" class="panda_visual"/>
+                      <geom mesh="hand_4" material="off_white" class="panda_visual"/>
+                      <geom mesh="hand_c" class="panda_collision"/>
+                      <body name="left_finger" pos="0 0 0.0584">
+                        <inertial mass="0.015" pos="0 0 0" diaginertia="2.375e-6 2.375e-6 7.5e-7"/>
+                        <joint name="finger_joint1" class="finger"/>
+                        <geom mesh="finger_0" material="off_white" class="panda_visual"/>
+                        <geom mesh="finger_1" material="panda_black" class="panda_visual"/>
+                        <geom mesh="finger_0" class="panda_collision"/>
+                        <geom class="fingertip_pad_collision_1"/>
+                        <geom class="fingertip_pad_collision_2"/>
+                        <geom class="fingertip_pad_collision_3"/>
+                        <geom class="fingertip_pad_collision_4"/>
+                        <geom class="fingertip_pad_collision_5"/>
+                      </body>
+                      <body name="right_finger" pos="0 0 0.0584" quat="0 0 0 1">
+                        <inertial mass="0.015" pos="0 0 0" diaginertia="2.375e-6 2.375e-6 7.5e-7"/>
+                        <joint name="finger_joint2" class="finger"/>
+                        <geom mesh="finger_0" material="off_white" class="panda_visual"/>
+                        <geom mesh="finger_1" material="panda_black" class="panda_visual"/>
+                        <geom mesh="finger_0" class="panda_collision"/>
+                        <geom class="fingertip_pad_collision_1"/>
+                        <geom class="fingertip_pad_collision_2"/>
+                        <geom class="fingertip_pad_collision_3"/>
+                        <geom class="fingertip_pad_collision_4"/>
+                        <geom class="fingertip_pad_collision_5"/>
                       </body>
                     </body>
-
-                    <!-- finger 2 -->
-                    <body name="f2_link0" pos="-0.0455 0.0214 -0.036" quat="0 0.706825 0.707388 0">
-                      <joint name="palm_finger_2_joint" axis="0 1 0" range="-0.192 0.1784" springref="0"/>
-                      <geom mesh="rq_link0" pos="0.02 0 0"/>
-                      <body name="f2_link1" pos="0.02 0 0">
-                        <joint name="finger_2_joint_1" range="0.0495 1.2218" springref="0.0495"/>
-                        <geom mesh="rq_link1" pos="0.05 -0.028 0" quat="0.96639 0 0 -0.257081"/>
-                        <body name="f2_link2" pos="0.05 -0.028 0" quat="0.96639 0 0 -0.257081">
-                          <joint name="finger_2_joint_2" range="0 1.5708" springref="0"/>
-                          <geom mesh="rq_link2" pos="0.039 0 0.0075"/>
-                          <body name="f2_link3" pos="0.039 0 0">
-                            <joint name="finger_2_joint_3" range="-1.2217 -0.0523" springref="-0.0523"/>
-                            <geom mesh="rq_link3" quat="0.96639 0 0 0.257081"/>
-                          </body>
-                        </body>
-                      </body>
-                    </body>
-
-                    <!-- middle finger (fixed to palm, no scissor joint) -->
-                    <body name="fmid_link0" pos="0.0455 0.0214 0" quat="0.707388 0 0 0.706825">
-                      <geom mesh="rq_link0" pos="0.02 0 0"/>
-                      <body name="fmid_link1" pos="0.02 0 0">
-                        <joint name="finger_middle_joint_1" range="0.0495 1.2218" springref="0.0495"/>
-                        <geom mesh="rq_link1" pos="0.05 -0.028 0" quat="0.96639 0 0 -0.257081"/>
-                        <body name="fmid_link2" pos="0.05 -0.028 0" quat="0.96639 0 0 -0.257081">
-                          <joint name="finger_middle_joint_2" range="0 1.5708" springref="0"/>
-                          <geom mesh="rq_link2" pos="0.039 0 0.0075"/>
-                          <body name="fmid_link3" pos="0.039 0 0">
-                            <joint name="finger_middle_joint_3" range="-1.2217 -0.0523" springref="-0.0523"/>
-                            <geom mesh="rq_link3" quat="0.96639 0 0 0.257081"/>
-                          </body>
-                        </body>
-                      </body>
-                    </body>
-                  </body>
+                  </frame>
                 </body>
               </body>
             </body>
@@ -201,9 +211,27 @@
     <motor name="wrist_1" joint="wrist_1_joint" gear="1" ctrlrange="-28 28"/>
     <motor name="wrist_2" joint="wrist_2_joint" gear="1" ctrlrange="-28 28"/>
     <motor name="wrist_3" joint="wrist_3_joint" gear="1" ctrlrange="-28 28"/>
+
+    <!-- Panda gripper: single actuator, both jaws via the split tendon. ctrl 0 = closed, 255 = open -->
+    <general class="panda" name="gripper" tendon="split" forcerange="-100 100" ctrlrange="0 255"
+      gainprm="0.01568627451 0 0" biasprm="0 -100 -10"/>
   </actuator>
 
+  <contact>
+    <exclude body1="hand" body2="left_finger"/>
+    <exclude body1="hand" body2="right_finger"/>
+    <exclude body1="wrist_3_link" body2="hand"/>
+  </contact>
+
+  <tendon>
+    <fixed name="split">
+      <joint joint="finger_joint1" coef="0.5"/>
+      <joint joint="finger_joint2" coef="0.5"/>
+    </fixed>
+  </tendon>
+
   <equality>
+    <joint joint1="finger_joint1" joint2="finger_joint2" solimp="0.95 0.99 0.001" solref="0.005 1"/>
     <joint name="lock_shoulder_pan_joint"  joint1="shoulder_pan_joint"  polycoef="0 1 0 0 0" active="false"/>
     <joint name="lock_shoulder_lift_joint" joint1="shoulder_lift_joint" polycoef="0 1 0 0 0" active="false"/>
     <joint name="lock_elbow_joint"         joint1="elbow_joint"         polycoef="0 1 0 0 0" active="false"/>
