@@ -413,3 +413,5 @@ https://github.com/google-deepmind/mujoco_menagerie/tree/main/franka_emika_panda
 I started with a Robotiq 3-Finger gripper, but a three-finger hand is hard to close reliably on a round object, and the only source for it was a URDF that needed translating into MJCF by hand. The Panda hand solves both problems. It is already written in MJCF, so it drops straight into `ur5e.xml`, and it is a simple parallel-jaw design: two fingers on prismatic (slide) joints with flat box pads, the same gripper MuJoCo uses in its own grasping demos. Flat pads squeezing in a straight line grasp far more dependably than three curling fingers.
 
 Because both models are MJCF, the only conflicts to clear up were shared names. The UR5e and the Panda both define a `black` material and `visual` and `collision` default classes, and MJCF names are global, so the Panda's were renamed to `panda_black`, `panda_visual`, and `panda_collision` to keep the two from colliding.
+
+![Task 3 Full Pose Demo](task3_images/ee_path.png)

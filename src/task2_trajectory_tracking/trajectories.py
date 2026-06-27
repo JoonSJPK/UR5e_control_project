@@ -1,4 +1,5 @@
 import os
+import sys
 from datetime import datetime
 
 import matplotlib
@@ -7,7 +8,10 @@ import matplotlib.pyplot as plt
 import numpy as np
 import mujoco
 import mujoco.viewer
-from tuned_controllers import PIDController
+
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+from pid_controller import make_joint_controller
+from trajectory_generator import TrajectoryGenerator
 
 SCENE_XML = os.path.join(os.path.dirname(__file__), "..", "..", "models", "universal_robots_ur5e", "scene.xml")
 
@@ -25,8 +29,10 @@ def main():
 
 
   controllers = []
+  trajgen = []
   for idx in range(6):
-     controllers.append(PIDController(joint = idx, target = target[idx], init = init[idx]))
+     controllers.append(make_joint_controller(idx))
+     trajgen.append(TrajectoryGenerator(target = target[idx], init = init[idx]))
 
   prev_time = 0.0
 
@@ -81,10 +87,10 @@ def main():
                 trans_tgt = []
                 for idx, controller in enumerate(controllers):
                     curr_time = data.time - trans_time
-                    trans_tgt.append(controller.compute_tgt_pos(curr_time, data.qpos[idx]))
+                    trans_tgt.append(trajgen[idx].compute_tgt_pos(curr_time))
 
                 for idx, controller in enumerate(controllers):
-                    tgt_vel = controller.compute_tgt_vel(curr_time)
+                    tgt_vel = trajgen[idx].compute_tgt_vel(curr_time)
                     data.ctrl[idx] = data.qpos[idx]  # neutralize built-in spring actuator
                     torque = controller.compute(
                         dt, trans_tgt[idx], data.qpos[idx], data.qvel[idx], tgt_vel
@@ -97,10 +103,10 @@ def main():
                 #collect data
                 if count < steps_total:
                     for idx in range(6):
-                        vel_error = np.abs(controllers[idx].compute_tgt_vel(curr_time) - data.qvel[idx])
+                        vel_error = np.abs(trajgen[idx].compute_tgt_vel(curr_time) - data.qvel[idx])
                         collect_vel[idx].append(float(data.qvel[idx]))
                         collect_pos[idx].append(float(data.qpos[idx]))
-                        collect_tgt_vel[idx].append(controllers[idx].compute_tgt_vel(curr_time))
+                        collect_tgt_vel[idx].append(trajgen[idx].compute_tgt_vel(curr_time))
                         collect_tgt_pos[idx].append(trans_tgt[idx])
                         collect_vel_error[idx].append(vel_error)
                     count += 1
