@@ -24,6 +24,10 @@ def main():
 
     kin = UR5eKinematics()
 
+    # open the gripper at the start
+    grip_id = model.actuator("gripper").id
+    data.ctrl[grip_id] = 255
+
     mujoco.mj_forward(model, data)
     validate_fk(model, data, kin)
     p_target = bottle_grasp_target(model, data, height_frac=1.0)
@@ -55,6 +59,14 @@ def main():
             if e_p_mag < pos_tol and e_o_mag < rot_tol:
               plot_ee_path(path_log, p_target)
               path_saved = True
+
+              data.ctrl[grip_id] = 0
+
+              t_close = data.time
+              while viewer.is_running() and data.time - t_close < 2.0:
+                mujoco_move(dt, viewer, controllers, model, data, init_theta, site_id, path_log)
+
+              init_theta = [-1.5708, -1.5708, 1.5708, -1.5708, -1.5708, 0]
 
           mujoco_move(dt, viewer, controllers, model, data, init_theta, site_id, path_log)
 

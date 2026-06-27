@@ -12,7 +12,6 @@ from mpl_toolkits.mplot3d import Axes3D
 
 
 class UR5eKinematics:
-  # (d, a, alpha) per joint — DH parameters lifted from jacobian_controllers.py
   DH_PARAMS = [
     (0.1625, 0.0,     np.pi / 2),
     (0.0,    -0.425,  0.0),
@@ -23,7 +22,6 @@ class UR5eKinematics:
   ]
 
   def dh_elem_matrix(self, theta, d, a, alpha):
-    # body lifted verbatim from fk_elem_step (jacobian_controllers.py)
     ct = np.cos(theta)
     st = np.sin(theta)
     cal = np.cos(alpha)
@@ -61,15 +59,20 @@ class UR5eKinematics:
     return trans_cum_matrix, trans_matrix, z, p
 
 
+GRIP_OFFSET = 0.1034
+
 def ik_step(kin, data, p_target, R_d, K_p=0.0008, K_o=0.0008, lambda_squared=0.0025 ** 2):
   trans_cum_matrix, trans_matrix, z, p = kin.forward_kinematics(data.qpos[:6])
 
-  e_p = calc_error_p(p_target, trans_cum_matrix)
+  z_flange = calc_z_axis(trans_cum_matrix)
+  p_grip = calc_p(trans_cum_matrix) + GRIP_OFFSET * z_flange
+
+  e_p = p_target - p_grip
   e_o = calc_error_o(R_d, trans_cum_matrix)
   e_p_mag = calc_e_mag(e_p)
   e_o_mag = calc_e_mag(e_o)
 
-  p_e = p[-1]
+  p_e = p_grip
   jv_transpose = []
   jw_transpose = []
   for idx in range(6):
