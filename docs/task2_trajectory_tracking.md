@@ -155,8 +155,6 @@ Pure PID feedback alone produced a reactive lag (98.4% overall alignment), since
 
 Joint 2 stood out as the weakest performer because it carries the rest of the arm's weight against gravity, and feedback alone needs a position sag to generate enough holding torque. Increasing Kp and Ki for that joint specifically closed nearly all of the remaining gap, at the cost of gains that would be riskier for noise/instability on real hardware than they are in simulation.
 
-## Postion graph with errors
-
 ## Links
 
 - https://www.youtube.com/watch?v=-oGNxB86YEk

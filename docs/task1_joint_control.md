@@ -50,7 +50,7 @@ In order to be able test joints individually without interference from non teste
 
 ### Friction Modeling
 
-To determine the joint damping coefficients for the UR5e simulation, the viscous friction parameters ($k_{v,j}$) shown in the electro-mechanical model by Clochiatti et al. (2024) was used. Because the paper shows these viscous coefficients from the motor side of the actuators, they cannot be directly applied to MuJoCo’s joint space configuration. Instead, to account for the robot's harmonic drive gearboxes, each motor-side coefficient must be scaled to the output joint space. In Modern Robotics (Lynch & Park), it is explained that a gearhead scales speed down by the gear ratio $G$ while magnifying output torque by the same factor. The joint viscous damping scales by the square of its gear reduction ratio ($N_j = 100$ for all six joints) using the relation $B_j = k_{v,j} \cdot N_j^2$. This transformation accounts for the fact that the motor spins $N$ times faster than the joint—generating $N$ times more friction.
+To determine the joint damping coefficients for the UR5e simulation, the viscous friction parameters ($k_{v,j}$) shown in the electro-mechanical model by Clochiatti et al. (2024) was used. Because the paper shows these viscous coefficients from the motor side of the actuators, they cannot be directly applied to MuJoCo’s joint space configuration. Instead, to account for the robot's harmonic drive gearboxes, each motor-side coefficient must be scaled to the output joint space. In Modern Robotics (Lynch & Park), it is explained that a gearhead scales speed down by the gear ratio $G$ while magnifying output torque by the same factor. The joint viscous damping scales by the square of its gear reduction ratio ($N_j = 100$ for all six joints) using the relation $B_j = k_{v,j} \cdot N_j^2$. This transformation accounts for the fact that the motor spins $N$ times faster than the joint (generating $N$ times more friction).
 
 $$\tau_{\text{fric, motor}} = k_{v,j} \cdot \omega_{\text{motor}} = k_{v,j} \cdot (N \cdot \omega_{\text{joint}})$$
 
@@ -151,9 +151,23 @@ After testing values between 0.0 and 1.0, a coefficient of 1e-8 was determined t
 ![Test bottle in MuJoCo scene](task1.1_images/torque_penalty_1e-8_ki.png)
 ![Test bottle in MuJoCo scene](task1.1_images/torque_penalty_1e-8_error.png)
 
-Although the overshoot problem improved and the steady state error was solved, there was still overshoot. Trying to improve one made the other problem worse. What tradeoff to favor depends on the task the robot is doing with these PID gains. For example with surgical robots, any amount of overshoot would not be acceptable as even a 1mm overshoot could contact areas of the task space like a blood vessel that should be be contacted. Surgical robots would reduce the Kp and incresase Kd to create a overdamped system where the arm would slowly reach the target position. Steady state error would not be acceptable in 3D printing because the layers of the printed object would not align leading to a useless printer.
+## Saturation Tradeoffs
 
-![Test bottle in MuJoCo scene](task1.1_images/lambda_sweep.png)
+Saturation happens when the controller demands for more torque than the actuator can deliver. The `ctrlrange` in the motor model caps each joint at its physical limit (150 Nm for the three large joints, 28 Nm for the wrist), so any commanded torque above that ceiling is clamped. While an actuator is saturated, the loop is effectively open: the integral and derivative terms keep computing corrections, but the joint only ever receives the maximum torque, so the controller temporarily loses its ability to shape the response. This could cause integral windup where the I term keeps accumulating leading to overshooting.
+
+This is the tradeoff the torque-penalty weight λ controls. A low λ lets the ITAE sweep favor aggressive Kp/Kd that drive the joint hard, giving a fast rise but has longer saturation time. A high λ punishes any excursion past the limit, so the sweep retreats to gentle gains that never saturate but respond sluggishly and leave a larger steady-state error:
+
+![Torque-penalty](task1.1_images/lambda_sweep.png)
+
+- **Peak commanded torque** (top, normalized so `1.0` is the actuator limit): at λ = 0 several joints are commanded above their limit, meaning they saturate. As λ grows the peaks fall under the line.
+- **Saturation duration** (middle): the time each joint spends pinned at its limit falls toward zero as λ increases.
+- **Steady-state error** (bottom): error grows as the gains get gentler, and worsens sharply at the largest λ values.
+
+Raising λ helps the top two panels but hurts the bottom one, so no single λ is best at everything. I picked λ = `1e-8` (highlighted) as the sweet spot: the joints stay just under their torque limit, barely saturate, and still keep the steady-state error low before the larger λ values make the robot too sluggish.
+
+## Overshoot Problem
+
+Although the overshoot problem improved and the steady state error was solved, there was still overshoot. Trying to improve one made the other problem worse. What tradeoff to favor depends on the task the robot is doing with these PID gains. For example with surgical robots, any amount of overshoot would not be acceptable as even a 1mm overshoot could contact areas of the task space like a blood vessel that should be be contacted. Surgical robots would reduce the Kp and incresase Kd to create a overdamped system where the arm would slowly reach the target position. Steady state error would not be acceptable in 3D printing because the layers of the printed object would not align leading to a useless printer.
 
 The steady state error caused in this specific configuration is caused by the lack of gravity compensation. One solution to this adding the data.qfrc_bias term to the final torque being applied. This gives compensation for both gravity and coriollis effects felt by the system. The fundamental equation explaining these effects is the following equation of motion for rigid objects.
 
@@ -173,15 +187,9 @@ Adding this term to applied torque showed much better performance when Ki = 0: s
 
 ## Conclusion
 
-## remember to add the images
+Task 1 built a custom torque-controlled PID system for the UR5e in MuJoCo, starting from a Fusion360 bottle imported through fusion2urdf and a robot model reconfigured with `<motor>` actuators, physically-derived joint damping, and per-joint mechanical locking for isolated testing. Rather than tuning the four coupled parameters (Kp, Ki, Kd, and the integral limit) by hand, I used an ITAE-based sweep extended with a torque-overage penalty, settling on λ = `1e-8` as the balance point where the joints stay just under their torque limits, barely saturate, and keep steady-state error low without becoming sluggish.
 
-## saturation tradeoffs
-
-
-
-
-
-
+The exercise made the core PID tradeoffs concrete: aggressive gains give fast rise times at the cost of saturation and overshoot, while low gains avoid saturation but cause steady-state error, and no single static tuning is optimal for every task. The remaining steady-state error was caused by uncompensated gravity, which adding the `qfrc_bias` term resolved cleanly (making Ki unnecessary). I chose to leave gravity compensation off for the remaining tasks in order to keep exploring PID tuning with other tasks. I plan to derive the `qfrc_bias` and implement my own version.
 
 ## Links
 
