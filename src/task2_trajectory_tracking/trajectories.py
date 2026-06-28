@@ -24,9 +24,6 @@ def main():
   init  = [-1.5708, -1.5708, -1.5708, -1.5708, -1.5708, -1.5708]
   target = [1.5708, -3.1416, 1.5708, -3.1416, 1.5708, -3.1416]
 
-  #init  = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, ]
-  #target  = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, ]
-
 
   controllers = []
   trajgen = []
@@ -37,9 +34,6 @@ def main():
   prev_time = 0.0
 
   trans_time = dt * 4000
-  #trans_state = [0, 1, 2]
-
-  #integrate trapazoid velocity equation to get positions
 
   #variable setup
   steps_total = int(10 / dt)
@@ -55,32 +49,16 @@ def main():
   with mujoco.viewer.launch_passive(model, data) as viewer:
         while viewer.is_running():
 
-            # Detect viewer reset — data.time jumps back to 0
             if data.time < prev_time:
                 for controller in controllers:
                     controller.reset()
             prev_time = data.time
-            
-            #apply torque to each joint
-            #if( data.time <= trans_time ):
-              #for idx, controller in enumerate(controllers):
-                 # data.qfrc_applied[idx] = controller.compute(
-                     # dt, targets[0][idx], data.qpos[idx], data.qvel[idx]
-                 # )
-
-            #apply torque to each joint
-            #if( data.time > trans_time ):
-             # for idx, controller in enumerate(controllers):
-            #      data.qfrc_applied[idx] = controller.compute(
-             #         dt, targets[1][idx], data.qpos[idx], data.qvel[idx]
-             #     )
 
             if( data.time >= 0.0 and data.time < trans_time ):
                 for idx, controller in enumerate(controllers):
-                    data.ctrl[idx] = data.qpos[idx]
                     torque = controller.compute(
                         dt, init[idx], data.qpos[idx], data.qvel[idx]
-                    ) #+ data.qfrc_bias[idx]
+                    )
                     limit = model.actuator_ctrlrange[idx, 1]
                     data.qfrc_applied[idx] = np.clip(torque, -limit, limit)
             elif( data.time >= trans_time and data.time <= trans_time + 8):
@@ -91,10 +69,9 @@ def main():
 
                 for idx, controller in enumerate(controllers):
                     tgt_vel = trajgen[idx].compute_tgt_vel(curr_time)
-                    data.ctrl[idx] = data.qpos[idx]  # neutralize built-in spring actuator
                     torque = controller.compute(
                         dt, trans_tgt[idx], data.qpos[idx], data.qvel[idx], tgt_vel
-                    ) #+ data.qfrc_bias[idx]
+                    )
                     limit = model.actuator_ctrlrange[idx, 1]
                     if limit < np.abs(torque):
                         print(f"joint {idx} saturated: {torque:.1f} > {limit:.1f} N·m")
@@ -112,10 +89,9 @@ def main():
                     count += 1
             else:
                 for idx, controller in enumerate(controllers):
-                    data.ctrl[idx] = data.qpos[idx]
                     torque = controllers[idx].compute(
                         dt, target[idx], data.qpos[idx], data.qvel[idx]
-                    ) #+ data.qfrc_bias[idx]
+                    )
                     limit = model.actuator_ctrlrange[idx, 1]
                     data.qfrc_applied[idx] = np.clip(torque, -limit, limit)
                 #collect data

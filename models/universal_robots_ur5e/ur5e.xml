@@ -44,7 +44,8 @@
         <geom type="mesh" contype="0" conaffinity="0" group="2"/>
       </default>
       <default class="panda_collision">
-        <geom type="mesh" group="3"/>
+        <!-- high-friction grippy pads: condim 6 adds torsional + rolling friction so the bottle can't spin or roll loose -->
+        <geom type="mesh" group="3" condim="6" friction="5.0 0.2 0.01" priority="2"/>
         <default class="fingertip_pad_collision_1">
           <geom type="box" size="0.0085 0.004 0.0085" pos="0 0.0055 0.0445"/>
         </default>
@@ -212,9 +213,11 @@
     <motor name="wrist_2" joint="wrist_2_joint" gear="1" ctrlrange="-28 28"/>
     <motor name="wrist_3" joint="wrist_3_joint" gear="1" ctrlrange="-28 28"/>
 
-    <!-- Panda gripper: single actuator, both jaws via the split tendon. ctrl 0 = closed, 255 = open -->
-    <general class="panda" name="gripper" tendon="split" forcerange="-100 100" ctrlrange="0 255"
-      gainprm="0.01568627451 0 0" biasprm="0 -100 -10"/>
+    <!-- Panda gripper: single actuator, both jaws via the split tendon. ctrl 0 = closed, 255 = open.
+         Stiffer position servo (gain+bias 10x) so it grips thin objects firmly; forcerange capped at the
+         real Franka Hand grasp spec (~140 N tendon -> ~70 N per jaw). -->
+    <general class="panda" name="gripper" tendon="split" forcerange="-140 140" ctrlrange="0 255"
+      gainprm="0.1568627451 0 0" biasprm="0 -1000 -100"/>
   </actuator>
 
   <contact>

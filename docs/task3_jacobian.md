@@ -110,6 +110,25 @@ T_0^{\,i} = \left[\begin{array}{c|c} R_0^{\,i} & P_i \\\hline \mathbf{0}^\top & 
 
 For the final frame, the right-hand column is $p_e$, the end effector position in Cartesian coordinates measured in meters, and the top-left 3x3 block is $R_e$, which describes the end effector's orientation. Column 3, the frame's z-axis $z_i$ is the axis that joint $i$ spins about.
  
+### Validating the FK against MuJoCo
+
+My FK builds $T_0^{\,6}$ in my own DH base frame, but the IK target is read out of MuJoCo (e.g. `data.geom_xpos` / `data.site_xpos`), which lives in the MuJoCo world frame. If those two frames don't actually describe the same physical point in the same coordinates, every error vector $e = p_{target} - p_e$ is wrong, and the arm would chase a ghost target even with perfectly correct math.
+
+A second trap is comparing the wrong frame. My DH chain ends at the flange (frame 6), while MuJoCo's `attachment_site` could carry an extra tool offset or rotation. Comparing the flange against a site that has been pushed forward by a tool would show a constant position gap that is *just a frame-definition difference, not an FK bug*: and chasing that "error" would put the math in a loop.
+
+`validate_fk()` (called once at startup in `jacobian.py`) validates these problems don't exist. For the current configuration plus four random joint configurations it:
+
+1. writes the joints into `data.qpos[:6]` and calls `mujoco.mj_forward` so MuJoCo reports the true frame positions for that pose,
+2. computes my DH world position $p_e$ for the same `qpos`,
+3. measures the Euclidean residual against the `attachment_site` and the `wrist_3_link` body: and prints each, so any offset between flange and tool is shown,
+4. shows the worst residual stays under a 2 mm tolerance, then restores the original state.
+
+```math
+\text{residual} = \lVert\, p_e^{\text{DH}} - p^{\text{MuJoCo}} \,\rVert < 2\ \text{mm}
+```
+
+This confirms two things: the DH chain and MuJoCo agree on where the end-effector is, and on this model the `attachment_site` sits right at the flange with no extra tool offset.
+
 ## Step 2 (Error)
  
 Forward kinematics gives me the current end effector position $p_e$. The next thing the controller needs is how far that is from the target, which is the straight-line difference between where I want the tool and where it is right now:
@@ -415,3 +434,47 @@ I started with a Robotiq 3-Finger gripper, but a three-finger hand is hard to cl
 Because both models are MJCF, the only conflicts to clear up were shared names. The UR5e and the Panda both define a `black` material and `visual` and `collision` default classes, and MJCF names are global, so the Panda's were renamed to `panda_black`, `panda_visual`, and `panda_collision` to keep the two from colliding.
 
 ![Task 3 Full Pose Demo](task3_images/ee_path.png)
+
+## Grabbing the Bottle
+
+With the hand mounted, I run a three-phase finite state machine:
+
+- **reach**: IK drives the grip point to the bottle. The gripper starts open (`data.ctrl[grip_id] = 255`; on this actuator `255 = open`, `0 = closed`).
+- **close**: once both `e_p` and `e_o` are under tolerance, the gripper closes (`data.ctrl[grip_id] = 0`) and holds for 2 s so the contact can settle before any motion.
+- **return**: IK drives the loaded hand back to the home pose.
+
+### Aiming at the right point on the bottle
+
+The IK solves for a full pose, so the grasp needs both a target **position** and a target **orientation**.
+
+`bottle_grasp_target()` reads the bottle's bounding box and returns a point a chosen fraction up its height (`height_frac`), on the central axis. The grip point itself is the flange position pushed forward by a fixed `GRIP_OFFSET` along the tool's approach axis.
+
+The target orientation `R_d` is a side of the bottle grasp: the gripper's approach axis (the tool's local +z, where the fingers point) is aimed horizontally at the bottle (+x), and the jaws close in the horizontal plane:
+
+```math
+R_d =
+\begin{bmatrix}
+0 & 0 & 1\\
+0 & 1 & 0\\
+-1 & 0 & 0
+\end{bmatrix}
+```
+
+### Problem: the bottle kept slipping out
+
+The first attempts grasped fine while stationary but lost the bottle as soon as the arm moved. There were three separate issues:
+
+**1. Grasp height.** Grabbing high on the bottle (near the top/neck) puts the grip far above the center of mass, so gravity hangs the whole bottle off the contact as a pendulum and pivots it loose. Gripping nearer the wide body, close to the center of mass, removes that lever arm.
+
+**2. Contact friction.** The fingertip pads defaulted to `condim=3` (sliding friction only) with `μ = 1.0`, so nothing resisted the bottle twisting in the jaws. The pad collision class now uses `condim=6` (adds torsional + rolling friction), `friction="5.0 0.2 0.01"`, and `priority="2"` so the contact takes the grippy pad values instead of combining with the bottle's lower defaults.
+
+**3. Grip force** Even with high friction the bottle still crept loose, because friction force is `μ × N` and the squeeze force `N` was small. The Panda gripper is a position servo, and on a thin object the fingers nearly close, so the position error is very small: the contact normal force measured only **~0.9 N**, against a bottle weight of `0.4 kg × 9.81 ≈ 3.9 N`. The fix was to stiffen the servo by scaling its gain and position bias together by 10×, and to cap `forcerange` at the real Franka Hand spec of ±140 N tendon force (~ 70 N per jaw):
+
+```xml
+<general class="panda" name="gripper" tendon="split" forcerange="-140 140" ctrlrange="0 255"
+  gainprm="0.1568627451 0 0" biasprm="0 -1000 -100"/>
+```
+
+After stiffening, the same grasp holds the bottle with **~14 N per jaw** (well under the 70 N ceiling, so it never saturates), and the contact normal force rises from ~0.9 N to ~9 N. With ~14 N of squeeze and `μ = 5.0`, the available holding force is far above the bottle's weight, and it no longer slips during the reach, lift, or return.
+
+![Bottle Grasp Demo](task3_images/gripper_bottle.gif)

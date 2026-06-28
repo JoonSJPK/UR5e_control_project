@@ -219,6 +219,7 @@ def calc_e_mag(e):
    return e_mag
 
 def mujoco_move(dt, viewer, controllers, model, data, init_theta, site_id=None, path_log=None):
+  
   for idx, controller in enumerate(controllers):
     data.qfrc_applied[idx] = controller.compute(
         dt, init_theta[idx], data.qpos[idx], data.qvel[idx]
