@@ -7,3 +7,7 @@ robot-descriptions==1.11.0
 # Numerical and Plotting
 numpy>=2.0
 matplotlib>=3.9
+
+# Task 4: cube detector (training) + real wrist-cam inference
+ultralytics>=8.3
+opencv-python>=4.10

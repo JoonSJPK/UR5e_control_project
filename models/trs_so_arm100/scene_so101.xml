@@ -18,13 +18,17 @@
     <texture type="2d" name="groundplane" builtin="checker" mark="edge" rgb1="0.2 0.3 0.4" rgb2="0.1 0.2 0.3"
       markrgb="0.8 0.8 0.8" width="300" height="300"/>
     <material name="groundplane" texture="groundplane" texuniform="true" texrepeat="5 5" reflectance="0.2"/>
+    <!-- Wood table surface (type=2d for a flat plane; tiled across the floor). -->
+    <texture type="2d" name="wood_tex" file="wood.png"/>
+    <material name="wood_mat" texture="wood_tex" texuniform="true" texrepeat="2 2"
+      specular="0.4" shininess="0.1"/>
     <!-- Orange PLA. The generator jitters this rgba for domain randomization. -->
     <material name="cube_mat" rgba="1 0.45 0.05 1" specular="0.3" shininess="0.25"/>
   </asset>
 
   <worldbody>
     <light name="main_light" pos="0 0 1.5" dir="0 0 -1" directional="true"/>
-    <geom name="floor" size="0 0 0.05" type="plane" material="groundplane"/>
+    <geom name="floor" size="0 0 0.05" type="plane" material="wood_mat"/>
 
     <!-- 50 mm cube (box size is half-extent -> 0.025). Resting on the floor at z=0.025.
          freejoint lets the generator set an arbitrary pose per frame; we render with

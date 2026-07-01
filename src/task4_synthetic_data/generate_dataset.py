@@ -49,7 +49,27 @@ def main():
         seg = renderer.render()[:, :, 0] 
         mask = seg == cube_geom_id
         
-        #TODO
+        # drop this frame if cube not visible
+        cube_pixels = int(mask.sum())
+        if cube_pixels < MIN_CUBE_PIXELS:
+            continue
+
+        # bbox from the mask -> (x, y, w, h) in pixels
+        ys, xs = np.where(mask)
+        x = int(xs.min())
+        y = int(ys.min())
+        w = int(xs.max() - xs.min() + 1)
+        h = int(ys.max() - ys.min() + 1)
+
+        # save
+        image_name = f"{saved:04d}.png"
+        Image.fromarray(rgb).save(OUT / "images" / image_name)
+        Image.fromarray(mask.astype(np.uint8) * 255).save(OUT / "masks" / image_name)
+        annotations.append({"image": image_name,
+            "bbox": [x, y, w, h],
+            "cube_pixels": cube_pixels,
+        })
+        saved += 1
 
     (OUT / "annotations.json").write_text(json.dumps(annotations, indent=2))
     print(f"saved {saved} frames to {OUT}")

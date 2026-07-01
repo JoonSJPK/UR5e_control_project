@@ -16,8 +16,15 @@
     <material name="groundplane" texture="groundplane" texuniform="true" texrepeat="5 5" reflectance="0.2"/>
   </asset>
 
+  <asset>
+    <texture name="wood_tex" type="cube" file="wood.png"/>
+    
+    <material name="wood_mat" texture="wood_tex" specular="0.4" shininess="0.1"/>
+  </asset>
+
+
   <worldbody>
     <light pos="0 0 1.5" dir="0 0 -1" directional="true"/>
-    <geom name="floor" size="0 0 0.05" type="plane" material="groundplane"/>
+    <geom name="floor" size="0 0 0.05" type="plane" material="wood_mat"/>
   </worldbody>
 </mujoco>
